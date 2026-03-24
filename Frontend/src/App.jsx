@@ -1,5 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Buy from "./pages/Buy";
@@ -15,25 +18,50 @@ import ResetPassword from "./auth/ResetPassword";
 function App() {
   return (
     <BrowserRouter>
+      <AuthProvider>
+        <Navbar />
 
-      <Navbar />
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/buy" element={<Buy />} />
+          <Route path="/rent" element={<Rent />} />
+          <Route path="/sell" element={<Sell />} />
+          <Route path="/property/:id" element={<PropertyDetails />} />
 
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/buy" element={<Buy />} />
-        <Route path="/rent" element={<Rent />} />
-        <Route path="/sell" element={<Sell />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/properties" element={<AdminDashboard />} />
-        <Route path="/admin/users" element={<AdminDashboard />} />
-        <Route path="/property/:id" element={<PropertyDetails />} />
+          {/* Auth Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-      </Routes>
-
+          {/* Admin Routes - Requires authentication and admin role */}
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/properties"
+            element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            }
+          />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

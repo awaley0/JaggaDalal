@@ -1,31 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { logout } from "../api/auth";
+import { useAuth } from "../context/AuthContext";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
-
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-
-    const handleStorageChange = () => {
-      const updated = localStorage.getItem("user");
-      setUser(updated ? JSON.parse(updated) : null);
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
     logout();
-    setUser(null);
     setIsOpen(false);
     navigate("/login");
   };

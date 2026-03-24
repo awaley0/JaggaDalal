@@ -1,39 +1,13 @@
-import axios from "axios";
-
-const API = axios.create({
-  baseURL: "http://localhost:5000/api/auth",
-});
-
-// Request interceptor to add token
-API.interceptors.request.use((req) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    req.headers.Authorization = `Bearer ${token}`;
-  }
-  return req;
-});
-
-// Response interceptor to handle token expiry
-API.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
-    }
-    return Promise.reject(error);
-  }
-);
+import axiosInstance from "./axios";
 
 // Auth endpoints
-export const signupUser = (userData) => API.post("/signup", userData);
-export const loginUser = (userData) => API.post("/login", userData);
-export const forgotPassword = (email) => API.post("/forgot-password", { email });
+export const signupUser = (userData) => axiosInstance.post("/auth/signup", userData);
+export const loginUser = (userData) => axiosInstance.post("/auth/login", userData);
+export const forgotPassword = (email) => axiosInstance.post("/auth/forgot-password", { email });
 export const resetPassword = (token, newPassword) =>
-  API.post("/reset-password", { token, newPassword });
-export const getUserProfile = () => API.get("/profile");
-export const getAllUsers = () => API.get("/users");
+  axiosInstance.post("/auth/reset-password", { token, newPassword });
+export const getUserProfile = () => axiosInstance.get("/auth/profile");
+export const getAllUsers = () => axiosInstance.get("/auth/users");
 
 // Logout function (client-side)
 export const logout = () => {

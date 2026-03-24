@@ -1,9 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loginUser } from "../api/auth";
+import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login, user } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -62,18 +72,39 @@ const Login = () => {
         rememberMe: formData.rememberMe,
       });
 
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
+      // Handle successful response
+      if (response.data.success || response.data.token) {
+        // Use AuthContext login function
+        login(response.data.user, response.data.token);
 
-      if (formData.rememberMe && response.data.rememberToken) {
-        localStorage.setItem("rememberToken", response.data.rememberToken);
+        // Optional: Store remember token
+        if (formData.rememberMe && response.data.rememberToken) {
+          localStorage.setItem("rememberToken", response.data.rememberToken);
+        }
+
+        // Success redirect with context
+        setTimeout(() => {
+          navigate("/");
+        }, 500);
       }
-
-      navigate("/");
     } catch (error) {
-      const errorMsg =
-        error.response?.data?.msg || error.message || "Login failed";
+      // Extract error message from different response formats
+      let errorMsg = "Login failed. Please try again.";
+      
+      if (error.response?.data?.msg) {
+        errorMsg = error.response.data.msg;
+      } else if (error.response?.data?.error) {
+        errorMsg = error.response.data.error;
+      } else if (error.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      } else if (error.message === "Network Error" || !error.response) {
+        errorMsg = "Network error. Make sure the backend server is running on http://localhost:5000";
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
       setApiError(errorMsg);
+      console.error("Login error:", error);
     } finally {
       setLoading(false);
     }
