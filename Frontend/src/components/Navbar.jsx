@@ -97,17 +97,31 @@ const Navbar = () => {
                       Profile
                     </Link>
                     <Link
+                      to="/chat"
+                      className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      💬 Messages
+                    </Link>
+                    <Link
                       to="/favorites"
                       className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                     >
                       Favorites
                     </Link>
+                    {user.role === "seller" && (
+                      <Link
+                        to="/admin"
+                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        Admin Dashboard
+                      </Link>
+                    )}
                     {user.role === "admin" && (
                       <Link
                         to="/admin"
                         className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                       >
-                        Admin Panel
+                        Admin Dashboard
                       </Link>
                     )}
                   </div>

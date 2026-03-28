@@ -75,9 +75,22 @@ const Signup = () => {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+    
+    // Clear current field error
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
+    
+    // If editing password fields, clear both password errors for real-time validation
+    if (name === "password" || name === "confirmPassword") {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.password;
+        delete newErrors.confirmPassword;
+        return newErrors;
+      });
+    }
+    
     setApiError("");
   };
 
@@ -121,9 +134,17 @@ const Signup = () => {
           localStorage.setItem("rememberToken", response.data.rememberToken);
         }
 
-        // Success redirect with context
+        // Role-based redirect
+        let redirectPath = "/";
+        if (response.data.user?.role === "seller") {
+          redirectPath = "/admin";  // Sellers are treated as admins
+        } else if (response.data.user?.role === "admin") {
+          redirectPath = "/admin";
+        }
+        // Buyers default to homepage ("/")
+
         setTimeout(() => {
-          navigate("/");
+          navigate(redirectPath);
         }, 500);
       }
     } catch (error) {

@@ -82,9 +82,17 @@ const Login = () => {
           localStorage.setItem("rememberToken", response.data.rememberToken);
         }
 
-        // Success redirect with context
+        // Role-based redirect
+        let redirectPath = "/";
+        if (response.data.user?.role === "seller") {
+          redirectPath = "/admin";  // Sellers are treated as admins
+        } else if (response.data.user?.role === "admin") {
+          redirectPath = "/admin";
+        }
+        // Buyers default to homepage ("/")
+
         setTimeout(() => {
-          navigate("/");
+          navigate(redirectPath);
         }, 500);
       }
     } catch (error) {
@@ -243,11 +251,17 @@ const Login = () => {
 
           {/* Social Login Buttons */}
           <div className="space-y-3">
-            <button className="w-full py-2.5 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-medium rounded-lg flex items-center justify-center space-x-2 transition-all duration-200">
+            <button 
+              type="button"
+              onClick={() => {
+                window.location.href = `http://localhost:5000/api/auth/google`;
+              }}
+              className="w-full py-2.5 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-medium rounded-lg flex items-center justify-center space-x-2 transition-all duration-200"
+            >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032 c0-3.331,2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.461,2.268,15.365,1,12.545,1 C6.477,1,1.54,5.938,1.54,12s4.938,11,11.005,11c6.067,0,11.067-4.941,11.067-11c0-0.713-0.084-1.405-0.242-2.074H12.545z" />
               </svg>
-              <span>Google</span>
+              <span>Sign in with Google</span>
             </button>
             <button className="w-full py-2.5 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-medium rounded-lg flex items-center justify-center space-x-2 transition-all duration-200">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

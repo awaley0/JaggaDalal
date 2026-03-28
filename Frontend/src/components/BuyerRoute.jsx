@@ -2,13 +2,12 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 /**
- * AdminRoute Component
- * Ensures only authenticated users with admin or seller role can access admin routes
- * Sellers are treated as admin-level users in this system
+ * BuyerRoute Component
+ * Ensures only authenticated users with buyer role can access buyer routes
  * Redirects to login if not authenticated
- * Redirects to home if authenticated but not admin/seller
+ * Redirects to home if authenticated but not buyer
  */
-const AdminRoute = ({ children }) => {
+const BuyerRoute = ({ children }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -24,12 +23,18 @@ const AdminRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Authenticated but not admin or seller - redirect to home
-  if (user?.role !== "admin" && user?.role !== "seller") {
+  // Authenticated but not buyer - redirect appropriately
+  if (user?.role !== "buyer") {
+    if (user?.role === "seller") {
+      return <Navigate to="/seller/properties" replace />;
+    }
+    if (user?.role === "admin") {
+      return <Navigate to="/admin" replace />;
+    }
     return <Navigate to="/" replace />;
   }
 
   return children;
 };
 
-export default AdminRoute;
+export default BuyerRoute;

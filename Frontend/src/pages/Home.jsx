@@ -1,11 +1,14 @@
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import SearchBar from "../components/SearchBar";
 import PropertyCard from "../components/PropertyCard";
 import properties from "../data/properties";
+import { useAuth } from "../context/AuthContext";
 
 const Home = () => {
   const [filteredProperties, setFilteredProperties] = useState(properties);
   const [selectedType, setSelectedType] = useState("all");
+  const { user, isAuthenticated } = useAuth();
 
   const handleSearch = (filters) => {
     const result = properties.filter((property) => {
@@ -28,10 +31,56 @@ const Home = () => {
     return filteredProperties.filter((p) => p.type === selectedType);
   }, [filteredProperties, selectedType]);
 
+  // User preference based recommendations
+  const getRecommendedProperties = () => {
+    if (!user) return featuredProperties;
+    
+    // Simple recommendation based on user role
+    if (user.role === "seller") {
+      return properties.filter(p => p.type === "sell").slice(0, 6);
+    } else if (user.role === "buyer") {
+      return properties.filter(p => p.type === "buy").slice(0, 6);
+    } else {
+      return featuredProperties.slice(0, 6);
+    }
+  };
+
   return (
     <div className="bg-gradient-to-b from-slate-50 via-white to-slate-50 min-h-screen">
+      {/* Welcome Section for Authenticated Users */}
+      {isAuthenticated && user && (
+        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-orange-400 pt-8 pb-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                  Welcome back, {user.name.split(" ")[0]}! 👋
+                </h2>
+                <p className="text-amber-50 text-sm sm:text-base">
+                  {user.role === "seller" && "Ready to list a new property?"}
+                  {user.role === "buyer" && "Continue your property search journey"}
+                  {user.role === "admin" && "Manage your platform from the admin dashboard"}
+                </p>
+              </div>
+              <div className="hidden md:flex items-center space-x-3">
+                {user.role === "seller" && (
+                  <Link to="/sell" className="px-6 py-2 bg-white text-amber-600 font-semibold rounded-lg hover:bg-amber-50 transition-colors shadow">
+                    List Property
+                  </Link>
+                )}
+                {user.role === "admin" && (
+                  <Link to="/admin" className="px-6 py-2 bg-white text-amber-600 font-semibold rounded-lg hover:bg-amber-50 transition-colors shadow">
+                    Go to Admin
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 pt-20 pb-16 sm:pt-32 sm:pb-24">
+      <div className={`relative ${!isAuthenticated ? 'bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 pt-20 pb-16 sm:pt-32 sm:pb-24' : 'bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 pt-8 pb-12 sm:pt-12 sm:pb-16'}`}>
         {/* Overlay Pattern */}
         <div className="absolute inset-0 opacity-5">
           <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,.05)_10px,rgba(255,255,255,.05)_20px)]"></div>
@@ -39,15 +88,19 @@ const Home = () => {
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Hero Content */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-4">
-              Find Your{" "}
-              <span className="text-amber-500">Dream Property</span>
-            </h1>
-            <p className="text-lg text-slate-200 mb-8 max-w-2xl mx-auto leading-relaxed">
-              Discover the perfect home for your family. Browse thousands of properties
-              to buy, rent, or sell with confidence.
-            </p>
+          <div className="text-center mb-8 sm:mb-12">
+            {!isAuthenticated && (
+              <>
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-4">
+                  Find Your{" "}
+                  <span className="text-amber-500">Dream Property</span>
+                </h1>
+                <p className="text-lg text-slate-200 mb-8 max-w-2xl mx-auto leading-relaxed">
+                  Discover the perfect home for your family. Browse thousands of properties
+                  to buy, rent, or sell with confidence.
+                </p>
+              </>
+            )}
 
             {/* Search Bar */}
             <div className="max-w-2xl mx-auto">
@@ -55,35 +108,62 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-3 gap-4 sm:gap-8 py-8 mt-8">
-            <div className="text-center">
-              <p className="text-3xl sm:text-4xl font-bold text-amber-500">
-                {properties.length}+
-              </p>
-              <p className="text-slate-300 text-sm sm:text-base mt-2">
-                Properties Listed
+          {/* Quick Stats (only show if not authenticated) */}
+          {!isAuthenticated && (
+            <div className="grid grid-cols-3 gap-4 sm:gap-8 py-8 mt-8">
+              <div className="text-center">
+                <p className="text-3xl sm:text-4xl font-bold text-amber-500">
+                  {properties.length}+
+                </p>
+                <p className="text-slate-300 text-sm sm:text-base mt-2">
+                  Properties Listed
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-3xl sm:text-4xl font-bold text-amber-500">
+                  {new Set(properties.map((p) => p.location)).size}+
+                </p>
+                <p className="text-slate-300 text-sm sm:text-base mt-2">
+                  Locations
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-3xl sm:text-4xl font-bold text-amber-500">
+                  4.6★
+                </p>
+                <p className="text-slate-300 text-sm sm:text-base mt-2">
+                  Avg Rating
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Personalized Recommendations for Logged In Users */}
+      {isAuthenticated && user && (
+        <div className="bg-gradient-to-b from-white to-slate-50 py-16 sm:py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <span className="inline-block text-amber-600 text-sm font-semibold uppercase tracking-widest px-3 py-1 bg-amber-100 rounded-full mb-3">
+                Recommended For You
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mt-4">
+                personalized picks
+              </h2>
+              <p className="text-slate-600 mt-4 max-w-2xl mx-auto text-lg">
+                Based on your profile as a {user.role}
               </p>
             </div>
-            <div className="text-center">
-              <p className="text-3xl sm:text-4xl font-bold text-amber-500">
-                {new Set(properties.map((p) => p.location)).size}+
-              </p>
-              <p className="text-slate-300 text-sm sm:text-base mt-2">
-                Locations
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl sm:text-4xl font-bold text-amber-500">
-                4.6★
-              </p>
-              <p className="text-slate-300 text-sm sm:text-base mt-2">
-                Avg Rating
-              </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {getRecommendedProperties().map((property) => (
+                <PropertyCard key={property.id} property={property} />
+              ))}
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Featured Properties Section */}
       {featuredProperties.length > 0 && (
@@ -197,14 +277,23 @@ const Home = () => {
       <div className="bg-gradient-to-r from-slate-900 to-slate-800 py-16 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-            Can't find what you're looking for?
+            Ready to get started?
           </h2>
-          <p className="text-slate-300 mb-8 max-w-2xl mx-auto text-lg">
-            Post your property or get personalized recommendations from our agents
+          <p className="text-slate-200 text-lg mb-8 max-w-2xl mx-auto">
+            {isAuthenticated 
+              ? "Explore our full selection or list your own property"
+              : "Sign up now and start your property journey"}
           </p>
-          <button className="px-8 py-3 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-all duration-300 shadow-lg shadow-amber-500/30">
-            Post Property
-          </button>
+          {!isAuthenticated && (
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link to="/signup" className="px-8 py-3 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-colors shadow-lg">
+                Get Started
+              </Link>
+              <Link to="/login" className="px-8 py-3 bg-white text-slate-900 font-semibold rounded-lg hover:bg-slate-100 transition-colors shadow-lg">
+                Sign In
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>
