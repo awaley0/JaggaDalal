@@ -123,22 +123,38 @@ const BuyerLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              JaggaDalal
-            </h1>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Buyer Login</h2>
-            <p className="text-gray-600 text-sm">Sign in to find your perfect property</p>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,#e0f2fe_45%,#f8fafc_100%)] flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-5xl grid lg:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 bg-white/90 backdrop-blur">
+        <div className="hidden lg:flex flex-col justify-between p-10 bg-linear-to-br from-slate-900 via-slate-800 to-amber-700 text-white">
+          <div>
+            <p className="text-sm uppercase tracking-[0.2em] text-amber-300">JaggaDalal</p>
+            <h2 className="text-4xl font-bold leading-tight mt-4">Find homes that match your lifestyle.</h2>
+            <p className="text-slate-200 mt-4 text-sm leading-relaxed">
+              Browse verified listings, save favorites, and connect with sellers in real time.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-xl bg-white/10 p-4 border border-white/20">
+              <p className="text-2xl font-bold">100+</p>
+              <p className="text-xs text-slate-200">Live Listings</p>
+            </div>
+            <div className="rounded-xl bg-white/10 p-4 border border-white/20">
+              <p className="text-2xl font-bold">24/7</p>
+              <p className="text-xs text-slate-200">Buyer Support</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 sm:p-10">
+          <div className="mb-8">
+            <h1 className="text-3xl font-extrabold text-slate-900">Buyer Login</h1>
+            <p className="text-slate-600 mt-2 text-sm">Sign in to continue searching and booking properties.</p>
           </div>
 
           {/* API Error Message */}
           {apiError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-700 text-sm">{apiError}</p>
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-red-700 text-sm font-medium">{apiError}</p>
             </div>
           )}
 
@@ -146,7 +162,7 @@ const BuyerLogin = () => {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email Input */}
             <div>
-              <label className="block text-gray-900 text-sm font-medium mb-2">
+              <label className="block text-slate-900 text-sm font-semibold mb-2">
                 Email Address
               </label>
               <input
@@ -155,11 +171,11 @@ const BuyerLogin = () => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="you@example.com"
-                className={`w-full px-4 py-2.5 rounded-lg border ${
+                className={`w-full px-4 py-3 rounded-xl border bg-white ${
                   errors.email
                     ? "border-red-300 focus:border-red-500 focus:ring-red-200"
-                    : "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
-                } text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-200`}
+                    : "border-slate-300 focus:border-amber-500 focus:ring-amber-200"
+                } text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all duration-200`}
               />
               {errors.email && (
                 <p className="text-red-600 text-sm mt-1">{errors.email}</p>
@@ -168,7 +184,7 @@ const BuyerLogin = () => {
 
             {/* Password Input */}
             <div>
-              <label className="block text-gray-900 text-sm font-medium mb-2">
+              <label className="block text-slate-900 text-sm font-semibold mb-2">
                 Password
               </label>
               <div className="relative">
@@ -178,16 +194,16 @@ const BuyerLogin = () => {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className={`w-full px-4 py-2.5 rounded-lg border ${
+                  className={`w-full px-4 py-3 rounded-xl border bg-white ${
                     errors.password
                       ? "border-red-300 focus:border-red-500 focus:ring-red-200"
-                      : "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
-                  } text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-200`}
+                      : "border-slate-300 focus:border-amber-500 focus:ring-amber-200"
+                  } text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all duration-200`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors"
                 >
                   {showPassword ? (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -214,13 +230,13 @@ const BuyerLogin = () => {
                   name="rememberMe"
                   checked={formData.rememberMe}
                   onChange={handleChange}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
                 />
-                <span className="text-gray-700 text-sm">Remember me</span>
+                <span className="text-slate-700 text-sm">Remember me</span>
               </label>
               <Link
                 to="/forgot-password"
-                className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
+                className="text-amber-700 hover:text-amber-800 text-sm font-semibold transition-colors"
               >
                 Forgot password?
               </Link>
@@ -230,7 +246,7 @@ const BuyerLogin = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="w-full py-3 bg-linear-to-r from-slate-900 to-amber-600 text-white font-semibold rounded-xl hover:from-slate-800 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
             >
               {loading ? (
                 <span className="flex items-center justify-center space-x-2">
@@ -248,9 +264,9 @@ const BuyerLogin = () => {
 
           {/* Divider */}
           <div className="my-6 flex items-center">
-            <div className="flex-1 h-px bg-gray-300"></div>
-            <span className="px-3 text-gray-500 text-sm">or</span>
-            <div className="flex-1 h-px bg-gray-300"></div>
+            <div className="flex-1 h-px bg-slate-300"></div>
+            <span className="px-3 text-slate-500 text-sm">or</span>
+            <div className="flex-1 h-px bg-slate-300"></div>
           </div>
 
           {/* Social Login Buttons */}
@@ -260,7 +276,7 @@ const BuyerLogin = () => {
               onClick={() => {
                 window.location.href = `http://localhost:5000/api/auth/google`;
               }}
-              className="w-full py-2.5 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-medium rounded-lg flex items-center justify-center space-x-2 transition-all duration-200"
+              className="w-full py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded-xl flex items-center justify-center space-x-2 transition-all duration-200"
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032 c0-3.331,2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.461,2.268,15.365,1,12.545,1 C6.477,1,1.54,5.938,1.54,12s4.938,11,11.005,11c6.067,0,11.067-4.941,11.067-11c0-0.713-0.084-1.405-0.242-2.074H12.545z" />
@@ -270,24 +286,34 @@ const BuyerLogin = () => {
           </div>
 
           {/* Sign Up Link */}
-          <p className="text-center mt-6 text-gray-700">
+          <p className="text-center mt-6 text-slate-700">
             Don't have an account?{" "}
             <Link
               to="/buyer/signup"
-              className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+              className="text-amber-700 hover:text-amber-800 font-semibold transition-colors"
             >
               Sign up now
             </Link>
           </p>
 
           {/* Switch to Seller */}
-          <p className="text-center mt-4 text-gray-600 text-sm">
+          <p className="text-center mt-4 text-slate-600 text-sm">
             Are you a seller?{" "}
             <Link
               to="/seller/login"
-              className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+              className="text-amber-700 hover:text-amber-800 font-semibold transition-colors"
             >
               Login as seller
+            </Link>
+          </p>
+
+          <p className="text-center mt-2 text-slate-600 text-sm">
+            Are you an admin?{" "}
+            <Link
+              to="/admin-login"
+              className="text-amber-700 hover:text-amber-800 font-semibold transition-colors"
+            >
+              Login as admin
             </Link>
           </p>
         </div>

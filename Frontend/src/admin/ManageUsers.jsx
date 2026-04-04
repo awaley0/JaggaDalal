@@ -127,6 +127,7 @@ const ManageUsers = () => {
                 <th className="px-6 py-3 text-left text-sm font-semibold">Email</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold">Phone</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold">Role</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold">Role Request</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold">Joined</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold">Actions</th>
               </tr>
@@ -147,6 +148,18 @@ const ManageUsers = () => {
                       <option value="seller">Seller</option>
                       <option value="admin">Admin</option>
                     </select>
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    {user.roleRequestStatus === "pending" && user.requestedRole ? (
+                      <button
+                        onClick={() => handleRoleChange(user._id, user.requestedRole)}
+                        className="px-3 py-1 bg-amber-500 text-white rounded hover:bg-amber-600 transition text-xs font-semibold"
+                      >
+                        Approve {user.requestedRole}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-500 capitalize">{user.roleRequestStatus || "approved"}</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     {new Date(user.createdAt).toLocaleDateString()}

@@ -24,6 +24,7 @@ class ChatService {
     this.socket = null;
     this.userId = null;
     this.listeners = {};
+    this.onlineUsers = new Set();
   }
 
   connect(userId) {
@@ -78,7 +79,16 @@ class ChatService {
     });
 
     this.socket.on('user-status-changed', (data) => {
+      if (data?.userId) {
+        if (data.isOnline) this.onlineUsers.add(String(data.userId));
+        else this.onlineUsers.delete(String(data.userId));
+      }
       this.emit('user-status-changed', data);
+    });
+
+    this.socket.on('online-users', (userIds = []) => {
+      this.onlineUsers = new Set((userIds || []).map((id) => String(id)));
+      this.emit('online-users', { userIds: Array.from(this.onlineUsers) });
     });
   }
 
@@ -150,6 +160,11 @@ class ChatService {
 
   isConnected() {
     return this.socket?.connected || false;
+  }
+
+  isUserOnline(userId) {
+    if (!userId) return false;
+    return this.onlineUsers.has(String(userId));
   }
 }
 

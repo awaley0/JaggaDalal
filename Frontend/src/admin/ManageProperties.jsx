@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { getAllPropertiesForAdmin, deletePropertyByAdmin, updatePropertyStatus } from "../api/adminApi";
 import axios from "../api/axios";
 import LocationPicker from "../components/LocationPicker/LocationPicker";
+import { formatRs } from "../utils/currency";
 
 const ManageProperties = () => {
   const [properties, setProperties] = useState([]);
@@ -172,7 +173,12 @@ const ManageProperties = () => {
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
       console.error("Error saving property:", err);
-      setError(err.response?.data?.message || "Failed to save property");
+      setError(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          err.message ||
+          "Failed to save property"
+      );
     } finally {
       setLoading(false);
     }
@@ -297,9 +303,11 @@ const ManageProperties = () => {
                     <option value="">Property Type</option>
                     <option value="apartment">Apartment</option>
                     <option value="house">House</option>
-                    <option value="studio">Studio</option>
-                    <option value="penthouse">Penthouse</option>
                     <option value="villa">Villa</option>
+                    <option value="commercial">Commercial</option>
+                    <option value="land">Land</option>
+                    <option value="townhouse">Townhouse</option>
+                    <option value="condo">Condo</option>
                   </select>
 
                   <select
@@ -310,7 +318,6 @@ const ManageProperties = () => {
                   >
                     <option value="sell">For Sale</option>
                     <option value="rent">For Rent</option>
-                    <option value="buy">Buy</option>
                   </select>
 
                   <input
@@ -477,7 +484,7 @@ const ManageProperties = () => {
           <option value="available">Available</option>
           <option value="sold">Sold</option>
           <option value="rented">Rented</option>
-          <option value="unavailable">Unavailable</option>
+          <option value="inactive">Inactive</option>
         </select>
       </div>
 
@@ -509,7 +516,7 @@ const ManageProperties = () => {
                 <tr key={property._id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-sm">{property.title}</td>
                   <td className="px-6 py-4 text-sm">{property.location}</td>
-                  <td className="px-6 py-4 text-sm font-semibold">${property.price?.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-sm font-semibold">{formatRs(property.price)}</td>
                   <td className="px-6 py-4 text-sm capitalize">{property.propertyType}</td>
                   <td className="px-6 py-4 text-sm">
                     <select
@@ -520,7 +527,7 @@ const ManageProperties = () => {
                       <option value="available">Available</option>
                       <option value="sold">Sold</option>
                       <option value="rented">Rented</option>
-                      <option value="unavailable">Unavailable</option>
+                      <option value="inactive">Inactive</option>
                     </select>
                   </td>
                   <td className="px-6 py-4 text-sm space-x-2">

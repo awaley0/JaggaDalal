@@ -32,6 +32,7 @@ import {
   updateBookingStatus,
   deleteBookingByAdmin,
 } from "../api/adminApi";
+import { formatRs } from "../utils/currency";
 
 const AdminDashboard = () => {
   const location = useLocation();
@@ -68,12 +69,12 @@ const AdminDashboard = () => {
   const [userPagination, setUserPagination] = useState(null);
   const [bookingPagination, setBookingPagination] = useState(null);
 
-  // Redirect if not admin or seller (seller is admin-level in this system)
+  // Redirect if not admin
   useEffect(() => {
     // Wait for auth to finish loading
     if (!authLoading) {
-      // If not authenticated or user role is not admin/seller, redirect
-      if (!isAuthenticated || !user || (user.role !== "admin" && user.role !== "seller")) {
+      // If not authenticated or user role is not admin, redirect
+      if (!isAuthenticated || !user || user.role !== "admin") {
         window.location.href = "/";
       }
     }
@@ -371,7 +372,7 @@ const AdminDashboard = () => {
                 <div>
                   <p className="text-slate-600 text-sm font-medium">Total Revenue</p>
                   <p className="text-3xl font-bold text-slate-900 mt-2">
-                    ${(stats?.totalRevenue || 0).toFixed(1)}K
+                    Rs {(stats?.totalRevenue || 0).toFixed(1)}K
                   </p>
                   <p className="text-xs text-emerald-600 mt-2">From bookings</p>
                 </div>
@@ -407,7 +408,7 @@ const AdminDashboard = () => {
                     <Bar
                       dataKey="revenue"
                       fill="#0f172a"
-                      name="Revenue ($K)"
+                      name="Revenue (Rs K)"
                       radius={[8, 8, 0, 0]}
                     />
                     <Bar
@@ -513,7 +514,7 @@ const AdminDashboard = () => {
                         </div>
                       </div>
                       <div className="text-right ml-2">
-                        <p className="font-semibold text-slate-900">${property.price?.toLocaleString()}</p>
+                        <p className="font-semibold text-slate-900">{formatRs(property.price)}</p>
                         <span
                           className={`text-xs px-2 py-1 rounded ${
                             property.status === "available"
@@ -618,7 +619,7 @@ const AdminDashboard = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="font-semibold text-slate-900">${property.price?.toLocaleString()}</p>
+                      <p className="font-semibold text-slate-900">{formatRs(property.price)}</p>
                     </td>
                     <td className="px-6 py-4">
                       <select
@@ -716,6 +717,7 @@ const AdminDashboard = () => {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">Name</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">Role Request</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">Verified</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">Actions</th>
               </tr>
@@ -748,6 +750,20 @@ const AdminDashboard = () => {
                       </select>
                     </td>
                     <td className="px-6 py-4">
+                      {u.roleRequestStatus === "pending" && u.requestedRole ? (
+                        <button
+                          onClick={() => handleUserRoleUpdate(u._id, u.requestedRole)}
+                          className="text-xs px-3 py-1 rounded-full font-semibold bg-amber-100 text-amber-700 hover:bg-amber-200 transition"
+                        >
+                          Approve {u.requestedRole}
+                        </button>
+                      ) : (
+                        <span className="text-xs px-3 py-1 rounded-full font-semibold bg-slate-100 text-slate-700 capitalize">
+                          {u.roleRequestStatus || "approved"}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
                       <span
                         className={`text-xs px-3 py-1 rounded-full font-semibold ${
                           u.verified
@@ -770,7 +786,7 @@ const AdminDashboard = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="6" className="px-6 py-8 text-center text-slate-500">
                     No users found
                   </td>
                 </tr>
@@ -872,7 +888,7 @@ const AdminDashboard = () => {
                     </td>
                     <td className="px-6 py-4">
                       <p className="font-medium text-slate-900">{booking.property?.title}</p>
-                      <p className="text-sm text-slate-600">${booking.property?.price?.toLocaleString()}</p>
+                      <p className="text-sm text-slate-600">{formatRs(booking.property?.price)}</p>
                     </td>
                     <td className="px-6 py-4">
                       <select
@@ -1080,7 +1096,7 @@ const AdminDashboard = () => {
             </div>
             <div className="bg-slate-700/50 rounded-lg p-3">
               <p className="text-xs text-slate-400 mb-1">Revenue</p>
-              <p className="text-lg font-bold text-white">${(stats?.totalRevenue || 0).toFixed(0)}K</p>
+              <p className="text-lg font-bold text-white">Rs {(stats?.totalRevenue || 0).toFixed(0)}K</p>
             </div>
           </div>
         </div>

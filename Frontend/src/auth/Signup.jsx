@@ -10,7 +10,9 @@ const Signup = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      if (user.role === "seller" || user.role === "admin") {
+      if (user.role === "seller") {
+        navigate("/seller/properties");
+      } else if (user.role === "admin") {
         navigate("/admin");
       } else if (user.role === "buyer") {
         navigate("/");
@@ -141,7 +143,7 @@ const Signup = () => {
         // Role-based redirect
         let redirectPath = "/";
         if (response.data.user?.role === "seller") {
-          redirectPath = "/admin";  // Sellers are treated as admins
+          redirectPath = "/seller/properties";
         } else if (response.data.user?.role === "admin") {
           redirectPath = "/admin";
         }

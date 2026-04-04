@@ -3,10 +3,9 @@ import { useAuth } from "../context/AuthContext";
 
 /**
  * AdminRoute Component
- * Ensures only authenticated users with admin or seller role can access admin routes
- * Sellers are treated as admin-level users in this system
- * Redirects to seller login if not authenticated
- * Redirects to home if authenticated but not admin/seller
+ * Ensures only authenticated users with admin role can access admin routes
+ * Redirects to admin login if not authenticated
+ * Redirects to home if authenticated but not admin
  */
 const AdminRoute = ({ children }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -19,13 +18,13 @@ const AdminRoute = ({ children }) => {
     );
   }
 
-  // Not authenticated - redirect to seller login
+  // Not authenticated - redirect to admin login
   if (!isAuthenticated) {
-    return <Navigate to="/seller/login" replace />;
+    return <Navigate to="/admin-login" replace />;
   }
 
-  // Authenticated but not admin or seller - redirect to home
-  if (user?.role !== "admin" && user?.role !== "seller") {
+  // Authenticated but not admin - redirect to home
+  if (user?.role !== "admin") {
     return <Navigate to="/" replace />;
   }
 

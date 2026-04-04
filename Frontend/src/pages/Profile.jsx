@@ -1,19 +1,50 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { updateUserProfile as updateUserProfileApi } from "../api/auth";
 
 const Profile = () => {
   const { user, updateUser, logout } = useAuth();
   const navigate = useNavigate();
+
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    phone: user?.phone || "",
-    bio: user?.bio || "",
+    name: "",
+    email: "",
+    phone: "",
+    bio: "",
   });
+  const [selectedProfileImage, setSelectedProfileImage] = useState(null);
+  const [profileImagePreview, setProfileImagePreview] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (!user) return;
+
+    setFormData({
+      name: user.name || "",
+      email: user.email || "",
+      phone: user.phone || "",
+      bio: user.bio || "",
+    });
+    setProfileImagePreview(user.profileImage || "");
+    setSelectedProfileImage(null);
+  }, [user, isEditing]);
+
+  const initials = useMemo(() => {
+    const name = user?.name || "User";
+    return (
+      name
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((n) => n[0]?.toUpperCase())
+        .join("") || "U"
+    );
+  }, [user?.name]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -23,22 +54,53 @@ const Profile = () => {
     }));
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedProfileImage(file);
+    setProfileImagePreview(URL.createObjectURL(file));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+    setErrorMessage("");
+    setSuccessMessage("");
+
     try {
-      // In a real app, this would call an API to update the profile
-      updateUser(formData);
-      setSuccessMessage("Profile updated successfully!");
-      setIsEditing(false);
-      
-      setTimeout(() => setSuccessMessage(""), 3000);
+      const payload = new FormData();
+      payload.append("name", formData.name);
+      payload.append("phone", formData.phone);
+      payload.append("bio", formData.bio);
+
+      if (selectedProfileImage) {
+        payload.append("profileImage", selectedProfileImage);
+      }
+
+      const response = await updateUserProfileApi(payload);
+      if (response?.data?.success && response?.data?.user) {
+        updateUser(response.data.user);
+        setSuccessMessage("Profile updated successfully!");
+        setIsEditing(false);
+        setTimeout(() => setSuccessMessage(""), 3000);
+      }
     } catch (error) {
       console.error("Error updating profile:", error);
+      setErrorMessage(
+        error.response?.data?.msg ||
+          error.response?.data?.error ||
+          "Failed to update profile. Please try again."
+      );
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setErrorMessage("");
+    setSuccessMessage("");
   };
 
   const handleLogout = () => {
@@ -57,29 +119,33 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-slate-50 py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-slate-900">Profile Settings</h1>
           <p className="text-slate-600 mt-2">Manage your account and personal information</p>
         </div>
 
-        {/* Success Message */}
         {successMessage && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
             {successMessage}
           </div>
         )}
 
-        {/* Main Profile Card */}
+        {errorMessage && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+            {errorMessage}
+          </div>
+        )}
+
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          {/* Profile Header */}
-          <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 sm:px-8 py-8">
+          <div className="bg-linear-to-r from-slate-900 to-slate-800 px-6 sm:px-8 py-8">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
-                  <span className="text-2xl font-bold text-white">
-                    {user.name.split(" ").map((n) => n[0]).join("")}
-                  </span>
+                <div className="w-16 h-16 rounded-full bg-slate-700 overflow-hidden flex items-center justify-center">
+                  {profileImagePreview ? (
+                    <img src={profileImagePreview} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl font-bold text-white">{initials}</span>
+                  )}
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-white">{user.name}</h2>
@@ -95,16 +161,31 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* Profile Content */}
           <div className="px-6 sm:px-8 py-8">
             {isEditing ? (
-              // Edit Form
               <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-2">Profile Photo</label>
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 rounded-full overflow-hidden bg-slate-100 border border-slate-300 flex items-center justify-center">
+                      {profileImagePreview ? (
+                        <img src={profileImagePreview} alt="Profile preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-lg font-bold text-slate-700">{initials}</span>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={handleImageChange}
+                      className="block w-full text-sm text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-amber-500 file:text-white file:font-semibold hover:file:bg-amber-600"
+                    />
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-900 mb-2">
-                      Full Name
-                    </label>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">Full Name</label>
                     <input
                       type="text"
                       name="name"
@@ -114,9 +195,7 @@ const Profile = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-900 mb-2">
-                      Email
-                    </label>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">Email</label>
                     <input
                       type="email"
                       name="email"
@@ -129,9 +208,7 @@ const Profile = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-900 mb-2">
-                    Phone Number
-                  </label>
+                  <label className="block text-sm font-semibold text-slate-900 mb-2">Phone Number</label>
                   <input
                     type="tel"
                     name="phone"
@@ -142,9 +219,7 @@ const Profile = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-900 mb-2">
-                    Bio
-                  </label>
+                  <label className="block text-sm font-semibold text-slate-900 mb-2">Bio</label>
                   <textarea
                     name="bio"
                     value={formData.bio}
@@ -154,16 +229,24 @@ const Profile = () => {
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-slate-900 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-700 transition-all disabled:opacity-50"
-                >
-                  {loading ? "Saving..." : "Save Changes"}
-                </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="w-full px-6 py-3 border border-slate-300 text-slate-800 font-semibold rounded-lg hover:bg-slate-100 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full px-6 py-3 bg-linear-to-r from-slate-900 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-700 transition-all disabled:opacity-50"
+                  >
+                    {loading ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
               </form>
             ) : (
-              // Display View
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -197,7 +280,6 @@ const Profile = () => {
             )}
           </div>
 
-          {/* Danger Zone */}
           <div className="border-t border-slate-200 px-6 sm:px-8 py-8 bg-slate-50">
             <h3 className="text-lg font-bold text-slate-900 mb-4">Danger Zone</h3>
             <button

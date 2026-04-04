@@ -6,6 +6,7 @@ import axiosInstance from "../api/axios";
 import { getPropertyById } from "../api/propertyApi";
 import PropertyDetailsMap from "../components/Map/PropertyDetailsMap";
 import { addFavorite, removeFavorite, isFavorited } from "../api/favoriteApi";
+import { formatRs } from "../utils/currency";
 
 const PropertyDetails = () => {
   const { id } = useParams();
@@ -16,6 +17,7 @@ const PropertyDetails = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
+  const [showMessageSetup, setShowMessageSetup] = useState(false);
   const [contactLoading, setContactLoading] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
@@ -32,9 +34,14 @@ const PropertyDetails = () => {
   const [createdBooking, setCreatedBooking] = useState(null);
   const [contactForm, setContactForm] = useState({
     name: "",
+    sellerName: "",
     email: "",
     phone: "",
     message: "",
+  });
+  const [messageSetupForm, setMessageSetupForm] = useState({
+    buyerName: "",
+    sellerName: "",
   });
 
   useEffect(() => {
@@ -83,6 +90,45 @@ const PropertyDetails = () => {
     setContactForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  useEffect(() => {
+    setMessageSetupForm((prev) => ({
+      ...prev,
+      buyerName: user?.name || prev.buyerName || "",
+      sellerName: property?.seller?.name || prev.sellerName || "",
+    }));
+    setContactForm((prev) => ({
+      ...prev,
+      name: user?.name || prev.name || "",
+      sellerName: property?.seller?.name || prev.sellerName || "",
+      email: user?.email || prev.email || "",
+      phone: user?.phone || prev.phone || "",
+    }));
+  }, [user, property?.seller?.name]);
+
+  const handleMessageSetupChange = (e) => {
+    const { name, value } = e.target;
+    setMessageSetupForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleMessageSetupSubmit = (e) => {
+    e.preventDefault();
+    const buyerName = messageSetupForm.buyerName.trim();
+    const targetSellerName = messageSetupForm.sellerName.trim();
+
+    if (!buyerName || !targetSellerName) {
+      alert("Please provide both your name and seller name to continue.");
+      return;
+    }
+
+    setContactForm((prev) => ({
+      ...prev,
+      name: buyerName,
+      sellerName: targetSellerName,
+    }));
+    setShowMessageSetup(false);
+    setShowContactForm(true);
+  };
+
   const handleContactSubmit = async (e) => {
     e.preventDefault();
 
@@ -102,6 +148,8 @@ const PropertyDetails = () => {
       setContactLoading(true);
       const inquiryMessage = [
         `Property inquiry for \"${property.title}\"`,
+        `Buyer: ${contactForm.name}`,
+        `Seller: ${contactForm.sellerName || sellerName}`,
         contactForm.message,
         `Contact: ${contactForm.name} | ${contactForm.email}${contactForm.phone ? ` | ${contactForm.phone}` : ''}`,
       ]
@@ -115,9 +163,13 @@ const PropertyDetails = () => {
         messageType: "text",
       });
 
-      alert("Your message has been sent to the seller.");
-      setContactForm({ name: "", email: "", phone: "", message: "" });
+      alert("Your message has been sent. Opening live chat now.");
+      setContactForm((prev) => ({
+        ...prev,
+        message: "",
+      }));
       setShowContactForm(false);
+      navigate(`/chat?recipientId=${encodeURIComponent(sellerId)}&recipientName=${encodeURIComponent(sellerName)}&propertyId=${encodeURIComponent(property._id || property.id)}`);
     } catch (error) {
       console.error("Contact inquiry error:", error);
       alert(error.response?.data?.error || "Failed to send your inquiry. Please try again.");
@@ -183,7 +235,7 @@ const PropertyDetails = () => {
 
       if (res.data?.success) {
         alert("Payment confirmed in sandbox fallback mode.");
-        navigate("/payment/verify?mock=1");
+        navigate(`/payment/verify?mock=1&bookingId=${createdBooking._id}`);
       }
     } catch (error) {
       const message = error.response?.data?.error || "Fallback payment confirmation failed.";
@@ -234,14 +286,57 @@ const PropertyDetails = () => {
     );
   }
 
+  const listingType = (property.listingType || property.type || "").toLowerCase();
+  const isRent = listingType === "rent";
+  const normalizedAreaValue =
+    typeof property.area === "object" ? property.area?.value : property.area;
+  const normalizedAreaUnit =
+    typeof property.area === "object" && property.area?.unit
+      ? property.area.unit
+      : "sqft";
+  const areaDisplay = Number.isFinite(Number(normalizedAreaValue))
+    ? Number(normalizedAreaValue).toLocaleString()
+    : "N/A";
+  const areaUnitLabel = normalizedAreaUnit === "sqm" ? "sqm" : "sq ft";
+  const bedroomsDisplay = Number.isFinite(Number(property.bedrooms))
+    ? Number(property.bedrooms)
+    : 0;
+  const bathroomsDisplay = Number.isFinite(Number(property.bathrooms))
+    ? Number(property.bathrooms)
+    : 0;
+
+  const sellerName = property?.seller?.name || "Seller";
+  const sellerId = property?.seller?._id || property?.seller?.id;
+  const sellerEmail = property?.seller?.email || "";
+  const sellerPhone = property?.seller?.phone || "";
+  const sellerInitials = sellerName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "SL";
+  const pricePerUnit =
+    Number.isFinite(Number(normalizedAreaValue)) && Number(normalizedAreaValue) > 0
+      ? Math.round(Number(property.price || 0) / Number(normalizedAreaValue))
+      : null;
+  const publishedDate = property?.createdAt
+    ? new Date(property.createdAt).toLocaleDateString()
+    : "Recently listed";
+  const currentUserId = user?.id || user?._id;
+  const isSellerUser = user?.role === "seller" || user?.role === "admin";
+  const isOwnerViewingListing =
+    Boolean(isSellerUser && currentUserId && sellerId) &&
+    String(currentUserId) === String(sellerId);
+  const shouldShowBuyerActions = !isAuthenticated || user?.role === "buyer";
+
   const similarProperties = properties
     .filter((p) => p.id !== property.id && p.type === property.type)
     .slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-linear-to-b from-slate-50 via-white to-slate-100">
       {/* Breadcrumb */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white/95 border-b border-slate-200 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center space-x-2 text-sm">
             <Link to="/" className="text-blue-600 hover:text-blue-700">
@@ -249,10 +344,10 @@ const PropertyDetails = () => {
             </Link>
             <span className="text-gray-400">/</span>
             <Link
-              to={property.type === "buy" ? "/buy" : "/rent"}
+              to={isRent ? "/rent" : "/buy"}
               className="text-blue-600 hover:text-blue-700"
             >
-              {property.type === "buy" ? "Buy" : "Rent"}
+              {isRent ? "Rent" : "Buy"}
             </Link>
             <span className="text-gray-400">/</span>
             <span className="text-gray-700">{property.title}</span>
@@ -262,7 +357,7 @@ const PropertyDetails = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* Left: Images and Details */}
           <div className="lg:col-span-2">
             {/* Main Image */}
@@ -335,50 +430,72 @@ const PropertyDetails = () => {
             )}
 
             {/* Property Details */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+            <div className="bg-white rounded-2xl border border-slate-200 p-7 mb-6 shadow-sm">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 {property.title}
               </h1>
               <p className="text-gray-600 text-lg mb-4">{property.location}</p>
 
+              <div className="flex flex-wrap items-center gap-2 mb-6">
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 capitalize">
+                  {isRent ? "For Rent" : "For Sale"}
+                </span>
+                {property.verified && (
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                    Verified Listing
+                  </span>
+                )}
+                {isOwnerViewingListing && (
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                    Owner View
+                  </span>
+                )}
+              </div>
+
+              {isOwnerViewingListing && (
+                <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                  You are viewing this listing as the owner. Buyer booking actions are hidden for seller mode.
+                </div>
+              )}
+
               {/* Price Info */}
-              <div className="mb-6 pb-6 border-b border-gray-200">
+              <div className="mb-7 pb-7 border-b border-slate-200">
                 <div className="flex items-baseline space-x-2">
-                  <span className="text-3xl font-bold text-blue-600">
-                    ${property.price.toLocaleString()}
+                  <span className="text-4xl font-extrabold text-blue-600 tracking-tight">
+                    {formatRs(property.price)}
                   </span>
                   {property.pricePerMonth && (
-                    <span className="text-gray-600">
-                      / ${property.pricePerMonth.toLocaleString()} per month
+                    <span className="text-slate-600 font-medium">
+                      / {formatRs(property.pricePerMonth)} per month
                     </span>
                   )}
                 </div>
               </div>
 
               {/* Key Features */}
-              <div className="grid grid-cols-3 gap-4 mb-6 pb-6 border-b border-gray-200">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">
-                    {property.bedrooms}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-7 pb-7 border-b border-slate-200">
+                <div className="text-center bg-slate-50 rounded-xl py-4 border border-slate-100">
+                  <div className="text-2xl font-bold text-slate-900">
+                    {bedroomsDisplay}
                   </div>
-                  <div className="text-sm text-gray-600">Bedrooms</div>
+                  <div className="text-sm text-slate-600">Bedrooms</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">
-                    {property.bathrooms}
+                <div className="text-center bg-slate-50 rounded-xl py-4 border border-slate-100">
+                  <div className="text-2xl font-bold text-slate-900">
+                    {bathroomsDisplay}
                   </div>
-                  <div className="text-sm text-gray-600">Bathrooms</div>
+                  <div className="text-sm text-slate-600">Bathrooms</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">
-                    {property.area.toLocaleString()}
+                <div className="text-center bg-slate-50 rounded-xl py-4 border border-slate-100">
+                  <div className="text-2xl font-bold text-slate-900">
+                    {areaDisplay}
                   </div>
-                  <div className="text-sm text-gray-600">Sq Ft</div>
+                  <div className="text-sm text-slate-600">{areaUnitLabel}</div>
                 </div>
               </div>
 
               {/* Rating and Reviews */}
-              <div className="mb-6 pb-6 border-b border-gray-200">
+              <div className="mb-7 pb-7 border-b border-slate-200">
                 <div className="flex items-center space-x-2 mb-2">
                   <div className="flex">
                     {[...Array(5)].map((_, i) => (
@@ -395,8 +512,8 @@ const PropertyDetails = () => {
                       </svg>
                     ))}
                   </div>
-                  <span className="text-sm text-gray-600">
-                    {property.rating.toFixed(1)} out of 5 ({property.reviews} reviews)
+                  <span className="text-sm text-slate-600">
+                    {Number(property.rating || 0).toFixed(1)} out of 5 ({Number(property.reviews || 0)} reviews)
                   </span>
                 </div>
               </div>
@@ -417,10 +534,10 @@ const PropertyDetails = () => {
                   Amenities
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {property.amenities.map((amenity, idx) => (
+                  {(property.amenities || []).length > 0 ? (property.amenities || []).map((amenity, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center space-x-2 bg-blue-50 px-3 py-2 rounded-lg"
+                      className="flex items-center space-x-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-100"
                     >
                       <svg
                         className="w-5 h-5 text-blue-600"
@@ -437,7 +554,9 @@ const PropertyDetails = () => {
                       </svg>
                       <span className="text-sm text-gray-700">{amenity}</span>
                     </div>
-                  ))}
+                  )) : (
+                    <p className="text-sm text-slate-500 col-span-full">No amenities provided for this property yet.</p>
+                  )}
                 </div>
               </div>
 
@@ -457,99 +576,169 @@ const PropertyDetails = () => {
 
           {/* Right: Contact Card */}
           <div>
-            <div className="bg-white rounded-lg border border-gray-200 p-6 sticky top-20">
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 sticky top-20 shadow-lg">
               {/* Agent Info */}
-              <div className="mb-6 pb-6 border-b border-gray-200">
-                <div className="flex items-center space-x-4 mb-4">
-                  <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-lg font-bold text-blue-600">JD</span>
+              <div className="mb-6 pb-6 border-b border-slate-200">
+                <div className="rounded-2xl bg-linear-to-r from-slate-50 to-blue-50 border border-slate-200 p-4">
+                  <div className="flex items-center space-x-4 mb-3">
+                    <div className="w-14 h-14 bg-blue-100 rounded-full ring-4 ring-white shadow-sm flex items-center justify-center">
+                      <span className="text-lg font-bold text-blue-600">{sellerInitials}</span>
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-xl">{sellerName}</h3>
+                      <p className="text-sm text-slate-600">Verified Listing Advisor</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">
-                      JaggaDalal Agent
-                    </h3>
-                    <p className="text-sm text-gray-600">Property Agent</p>
-                  </div>
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    Reach the seller directly for pricing details, availability, negotiation, and booking support.
+                  </p>
                 </div>
-                <p className="text-sm text-gray-700">
-                  Experienced agent specializing in residential and commercial
-                  properties.
-                </p>
               </div>
 
               {/* Contact/Booking Buttons */}
               <div className="space-y-3 mb-6">
-                {/* Booking Button - For Rentals */}
-                {property.listingType === "rent" && (
-                  <button
-                    onClick={() => {
-                      if (!isAuthenticated) {
-                        navigate("/login");
-                      } else {
-                        setShowBookingModal(true);
-                      }
-                    }}
-                    className="block w-full py-2.5 text-center bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all"
-                  >
-                    📅 Book Now
-                  </button>
-                )}
+                {shouldShowBuyerActions ? (
+                  <>
+                    {/* Booking Button - For Rentals */}
+                    {listingType === "rent" && (
+                      <button
+                        onClick={() => {
+                          if (!isAuthenticated) {
+                            navigate("/login");
+                          } else {
+                            setShowBookingModal(true);
+                          }
+                        }}
+                        className="block w-full py-3 text-center bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-all shadow-sm"
+                      >
+                        Schedule Booking
+                      </button>
+                    )}
 
-                {/* Purchase/Inquiry Button - For Sales */}
-                {property.listingType === "sell" && (
-                  <button
-                    onClick={() => {
-                      if (!isAuthenticated) {
-                        navigate("/login");
-                      } else {
-                        setShowContactForm(true);
-                      }
-                    }}
-                    className="block w-full py-2.5 text-center bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all"
-                  >
-                    💼 Inquire Now
-                  </button>
-                )}
+                    {/* Purchase/Inquiry Button - For Sales */}
+                    {listingType === "sell" && (
+                      <button
+                        onClick={() => {
+                          if (!isAuthenticated) {
+                            navigate("/login");
+                          } else {
+                            setShowContactForm(true);
+                          }
+                        }}
+                        className="block w-full py-3 text-center bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-all shadow-sm"
+                      >
+                        Inquire Now
+                      </button>
+                    )}
 
-                <a
-                  href="tel:+1234567890"
-                  className="block w-full py-2.5 text-center bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all"
-                >
-                  📞 Call Agent
-                </a>
-                <a
-                  href="mailto:agent@example.com"
-                  className="block w-full py-2.5 text-center border border-blue-600 text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-all"
-                >
-                  ✉️ Email Agent
-                </a>
+                    {sellerPhone ? (
+                      <a
+                        href={`tel:${sellerPhone}`}
+                        className="block w-full py-3 text-center bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-sm"
+                      >
+                        Call Seller
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="block w-full py-3 text-center bg-gray-300 text-white font-semibold rounded-xl cursor-not-allowed"
+                      >
+                        Call Seller (Unavailable)
+                      </button>
+                    )}
 
-                {/* Book Property Button - Always Visible */}
-                <button
-                  onClick={() => {
-                    if (!isAuthenticated) {
-                      navigate("/login");
-                    } else {
-                      setShowBookingModal(true);
-                    }
-                  }}
-                  className="block w-full py-2.5 text-center bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-all shadow-md hover:shadow-lg"
-                >
-                  🔖 Book Property
-                </button>
+                    {sellerEmail ? (
+                      <a
+                        href={`mailto:${sellerEmail}`}
+                        className="block w-full py-3 text-center border border-blue-600 text-blue-600 font-semibold rounded-xl hover:bg-blue-50 transition-all"
+                      >
+                        Email Seller
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="block w-full py-3 text-center border border-gray-300 text-gray-500 font-semibold rounded-xl cursor-not-allowed"
+                      >
+                        Email Seller (Unavailable)
+                      </button>
+                    )}
 
-                {property.listingType === "sell" && (
-                  <button
-                    onClick={() => setShowContactForm(!showContactForm)}
-                    className="block w-full py-2.5 text-center bg-gray-100 text-gray-900 font-semibold rounded-lg hover:bg-gray-200 transition-all"
-                  >
-                    💬 Send Message
-                  </button>
+                    {/* Book Property Button - Always Visible */}
+                    <button
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          navigate("/login");
+                        } else {
+                          setShowBookingModal(true);
+                        }
+                      }}
+                      className="block w-full py-3 text-center bg-amber-500 text-white font-semibold rounded-xl hover:bg-amber-600 transition-all shadow-md hover:shadow-lg"
+                    >
+                      Book Property
+                    </button>
+
+                    {listingType === "sell" && (
+                      <button
+                        onClick={() => {
+                          if (!isAuthenticated) {
+                            navigate("/login");
+                          } else {
+                            setShowMessageSetup(true);
+                          }
+                        }}
+                        className="block w-full py-3 text-center bg-slate-100 text-slate-900 font-semibold rounded-xl hover:bg-slate-200 transition-all"
+                      >
+                        Send Message
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {isOwnerViewingListing ? (
+                      <>
+                        <button
+                          onClick={() => navigate('/admin/properties')}
+                          className="block w-full py-2.5 text-center bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-all"
+                        >
+                          ✏️ Manage This Listing
+                        </button>
+                        <button
+                          onClick={() => navigate('/admin/bookings')}
+                          className="block w-full py-2.5 text-center bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-all"
+                        >
+                          📋 View Booking Requests
+                        </button>
+                        <button
+                          onClick={() => navigate('/chat')}
+                          className="block w-full py-2.5 text-center border border-indigo-600 text-indigo-700 font-semibold rounded-lg hover:bg-indigo-50 transition-all"
+                        >
+                          💬 Open Buyer Chats
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => navigate('/chat')}
+                          className="block w-full py-2.5 text-center bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-all"
+                        >
+                          💬 Message Listing Owner
+                        </button>
+                        <button
+                          onClick={() => navigate('/admin/properties')}
+                          className="block w-full py-2.5 text-center border border-indigo-600 text-indigo-700 font-semibold rounded-lg hover:bg-indigo-50 transition-all"
+                        >
+                          📊 Back to My Listings
+                        </button>
+                      </>
+                    )}
+                  </>
                 )}
               </div>
 
               {/* Contact Form */}
-              {showContactForm && (
+              {showContactForm && shouldShowBuyerActions && (
                 <form onSubmit={handleContactSubmit} className="space-y-4">
                   <input
                     type="text"
@@ -558,6 +747,15 @@ const PropertyDetails = () => {
                     value={contactForm.name}
                     onChange={handleContactChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    required
+                  />
+                  <input
+                    type="text"
+                    name="sellerName"
+                    placeholder="Seller Name"
+                    value={contactForm.sellerName}
+                    onChange={handleContactChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     required
                   />
                   <input
@@ -597,6 +795,46 @@ const PropertyDetails = () => {
                 </form>
               )}
 
+              {/* Message Setup Prompt */}
+              {showMessageSetup && shouldShowBuyerActions && (
+                <form onSubmit={handleMessageSetupSubmit} className="space-y-4 mb-6 p-4 rounded-xl border border-slate-200 bg-slate-50">
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Start a Conversation</h4>
+                  <input
+                    type="text"
+                    name="buyerName"
+                    placeholder="Your Name"
+                    value={messageSetupForm.buyerName}
+                    onChange={handleMessageSetupChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    required
+                  />
+                  <input
+                    type="text"
+                    name="sellerName"
+                    placeholder="Seller Name"
+                    value={messageSetupForm.sellerName}
+                    onChange={handleMessageSetupChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    required
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowMessageSetup(false)}
+                      className="flex-1 py-2.5 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-white transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+                    >
+                      Continue
+                    </button>
+                  </div>
+                </form>
+              )}
+
               {/* Quick Info */}
               <div className="bg-blue-50 rounded-lg p-4 space-y-3">
                 <p className="text-sm text-gray-700">
@@ -605,7 +843,10 @@ const PropertyDetails = () => {
                 </p>
                 <p className="text-sm text-gray-700">
                   <span className="font-semibold">Type:</span>{" "}
-                  {property.type === "buy" ? "For Sale" : "For Rent"}
+                  {isRent ? "For Rent" : "For Sale"}
+                </p>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Published:</span> {publishedDate}
                 </p>
                 {property.verified && (
                   <p className="text-sm text-green-700 flex items-center space-x-1">
@@ -620,6 +861,25 @@ const PropertyDetails = () => {
                   </p>
                 )}
               </div>
+
+              {shouldShowBuyerActions && (
+                <div className="mt-4 bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-3">
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Buyer Insights</h4>
+                  <p className="text-sm text-slate-700">
+                    <span className="font-semibold">Area:</span> {areaDisplay} {areaUnitLabel}
+                  </p>
+                  <p className="text-sm text-slate-700">
+                    <span className="font-semibold">Price per {areaUnitLabel}:</span>{" "}
+                    {pricePerUnit ? formatRs(pricePerUnit) : "N/A"}
+                  </p>
+                  <p className="text-sm text-slate-700">
+                    <span className="font-semibold">Bedrooms / Bathrooms:</span> {bedroomsDisplay} / {bathroomsDisplay}
+                  </p>
+                  <p className="text-xs text-slate-500 pt-1 border-t border-slate-200">
+                    Tip: compare this listing with nearby properties and book a chat to negotiate faster.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -653,7 +913,7 @@ const PropertyDetails = () => {
                     <h3 className="font-semibold text-gray-900">{prop.title}</h3>
                     <p className="text-sm text-gray-600 mb-2">{prop.location}</p>
                     <p className="text-lg font-bold text-blue-600">
-                      ${prop.price.toLocaleString()}
+                      {formatRs(prop.price)}
                     </p>
                     <div className="flex items-center justify-between mt-3 text-sm text-gray-600">
                       <span>{prop.bedrooms} bed</span>
@@ -824,8 +1084,7 @@ const PropertyDetails = () => {
 
                       <div className="bg-green-50 p-3 rounded-lg mb-3">
                         <p className="text-sm text-gray-700">
-                          <span className="font-semibold">Monthly Rent:</span> $
-                          {property.price?.toLocaleString() || "N/A"}
+                          <span className="font-semibold">Monthly Rent:</span> {formatRs(property.price || 0)}
                         </p>
                       </div>
                     </>
@@ -835,8 +1094,7 @@ const PropertyDetails = () => {
                   {property.listingType === "sell" && (
                     <div className="bg-green-50 p-3 rounded-lg mb-3">
                       <p className="text-sm text-gray-700">
-                        <span className="font-semibold">Price:</span> $
-                        {property.price?.toLocaleString() || "N/A"}
+                        <span className="font-semibold">Price:</span> {formatRs(property.price || 0)}
                       </p>
                     </div>
                   )}
@@ -878,7 +1136,7 @@ const PropertyDetails = () => {
                     </div>
                     <div className="bg-white rounded-lg p-3 mb-4 border border-green-200">
                       <p className="text-sm text-gray-600">Amount to Pay</p>
-                      <p className="text-2xl font-bold text-gray-900">Rs. {esewaPayload.total_amount?.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-gray-900">{formatRs(esewaPayload.total_amount)}</p>
                       <p className="text-xs text-gray-500 mt-1">Property: {property.title}</p>
                     </div>
 

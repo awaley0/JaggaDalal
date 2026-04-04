@@ -10,8 +10,10 @@ const SellerSignup = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      // Sellers/admins go to admin, redirect buyers to buyer signup
-      if (user.role === "seller" || user.role === "admin") {
+      // Redirect based on role
+      if (user.role === "seller") {
+        navigate("/seller/properties");
+      } else if (user.role === "admin") {
         navigate("/admin");
       } else if (user.role === "buyer") {
         navigate("/buyer/signup");
@@ -146,7 +148,7 @@ const SellerSignup = () => {
         }
 
         setTimeout(() => {
-          navigate("/admin");
+          navigate("/seller/properties");
         }, 300);
       }
     } catch (error) {

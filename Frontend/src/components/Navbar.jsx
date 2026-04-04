@@ -1,12 +1,40 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { getUnreadCount } from "../api/chatApi";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+
+  useEffect(() => {
+    let intervalId;
+
+    const loadUnread = async () => {
+      if (!user) {
+        setUnreadCount(0);
+        return;
+      }
+      try {
+        const res = await getUnreadCount();
+        if (res?.success) {
+          setUnreadCount(Number(res.unreadCount || 0));
+        }
+      } catch {
+        // Keep navbar resilient even if unread API fails.
+      }
+    };
+
+    loadUnread();
+    if (user) intervalId = setInterval(loadUnread, 8000);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -15,28 +43,32 @@ const Navbar = () => {
   };
 
   const getInitials = (name) => {
-    return name
+    return (name || "User")
       .split(" ")
       .map((n) => n[0])
       .join("")
       .toUpperCase();
   };
 
-  const navLinks = [
+  const navLinks = user?.role === "admin"
+    ? []
+    : [
     { to: "/", label: "Home" },
     { to: "/buy", label: "Buy", hideFor: "seller" },
     { to: "/rent", label: "Rent" },
     { to: "/sell", label: "Sell", hideFor: "buyer" },
   ].filter(link => !user || link.hideFor !== user.role);
 
+  const logoTarget = user?.role === "admin" ? "/admin" : "/";
+
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to="/" className="flex-shrink-0">
+          <Link to={logoTarget} className="shrink-0">
             <div className="flex items-center space-x-2">
-              <span className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+              <span className="text-3xl font-bold bg-linear-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
                 JaggaDalal
               </span>
             </div>
@@ -71,8 +103,19 @@ const Navbar = () => {
               // Logged In User
               <div className="relative group">
                 <button className="flex items-center space-x-2 px-4 py-2 rounded-lg border border-slate-200 hover:border-amber-300 hover:bg-amber-50 transition-all duration-200">
-                  <div className="w-8 h-8 bg-gradient-to-br from-slate-900 to-slate-700 rounded-full flex items-center justify-center font-semibold text-sm text-white">
-                    {getInitials(user.name)}
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-linear-to-br from-slate-900 to-slate-700 flex items-center justify-center font-semibold text-sm text-white">
+                    {user.profileImage ? (
+                      <img
+                        src={user.profileImage}
+                        alt={user.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = "https://via.placeholder.com/64?text=U";
+                        }}
+                      />
+                    ) : (
+                      getInitials(user.name)
+                    )}
                   </div>
                   <span className="text-sm font-medium text-slate-900">{user.name.split(" ")[0]}</span>
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,7 +143,14 @@ const Navbar = () => {
                       to="/chat"
                       className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                     >
-                      💬 Messages
+                      <span className="inline-flex items-center gap-2">
+                        <span>💬 Messages</span>
+                        {unreadCount > 0 && (
+                          <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </span>
+                        )}
+                      </span>
                     </Link>
                     <Link
                       to="/favorites"
@@ -108,12 +158,20 @@ const Navbar = () => {
                     >
                       Favorites
                     </Link>
-                    {user.role === "seller" && (
+                    {user.role === "buyer" && (
                       <Link
-                        to="/admin"
+                        to="/buyer/dashboard"
                         className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                       >
-                        Admin Dashboard
+                        My Bookings
+                      </Link>
+                    )}
+                    {user.role === "seller" && (
+                      <Link
+                        to="/seller/properties"
+                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        Seller Dashboard
                       </Link>
                     )}
                     {user.role === "admin" && (
@@ -152,7 +210,7 @@ const Navbar = () => {
                 </Link>
                 <Link
                   to="/buyer/signup"
-                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-800 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-900 transition-all duration-200 shadow-lg shadow-blue-600/20"
+                  className="px-4 py-2 bg-linear-to-r from-blue-600 to-blue-800 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-900 transition-all duration-200 shadow-lg shadow-blue-600/20"
                 >
                   Sign Up
                 </Link>
@@ -215,6 +273,30 @@ const Navbar = () => {
             <div className="pt-3 border-t border-slate-200 space-y-2">
               {user ? (
                 <>
+                  {user.role === "buyer" && (
+                    <Link
+                      to="/buyer/dashboard"
+                      className="block px-4 py-2 text-slate-700 hover:bg-slate-50 font-medium transition-colors"
+                    >
+                      My Bookings
+                    </Link>
+                  )}
+                  {user.role === "seller" && (
+                    <Link
+                      to="/seller/properties"
+                      className="block px-4 py-2 text-slate-700 hover:bg-slate-50 font-medium transition-colors"
+                    >
+                      Seller Dashboard
+                    </Link>
+                  )}
+                  {user.role === "admin" && (
+                    <Link
+                      to="/admin"
+                      className="block px-4 py-2 text-slate-700 hover:bg-slate-50 font-medium transition-colors"
+                    >
+                      Admin Dashboard
+                    </Link>
+                  )}
                   <Link
                     to="/profile"
                     className="block px-4 py-2 text-slate-700 hover:bg-slate-50 font-medium transition-colors"
@@ -244,7 +326,7 @@ const Navbar = () => {
                   </Link>
                   <Link
                     to="/buyer/signup"
-                    className="block px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-800 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-900 transition-all duration-200 text-center"
+                    className="block px-4 py-2 bg-linear-to-r from-blue-600 to-blue-800 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-900 transition-all duration-200 text-center"
                   >
                     Sign Up
                   </Link>

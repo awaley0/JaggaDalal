@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import SellerRoute from "./components/SellerRoute";
+import BuyerRoute from "./components/BuyerRoute";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Buy from "./pages/Buy";
@@ -163,9 +164,9 @@ function AppRoutes() {
         <Route
           path="/buyer/dashboard"
           element={
-            <ProtectedRoute>
+            <BuyerRoute>
               <BuyerDashboard />
-            </ProtectedRoute>
+            </BuyerRoute>
           }
         />
       </Routes>

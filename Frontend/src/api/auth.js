@@ -7,6 +7,10 @@ export const forgotPassword = (email) => axiosInstance.post("/auth/forgot-passwo
 export const resetPassword = (token, newPassword) =>
   axiosInstance.post("/auth/reset-password", { token, newPassword });
 export const getUserProfile = () => axiosInstance.get("/auth/profile");
+export const updateUserProfile = (profileData) =>
+  axiosInstance.put("/auth/profile", profileData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 export const getAllUsers = () => axiosInstance.get("/auth/users");
 
 // Logout function (client-side)

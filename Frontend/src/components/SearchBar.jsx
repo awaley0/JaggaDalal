@@ -29,9 +29,9 @@ const SearchBar = ({ onSearch }) => {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white rounded-xl shadow-xl p-6 max-w-2xl w-full border border-slate-200"
+      className="bg-white/95 backdrop-blur rounded-2xl shadow-xl p-5 sm:p-6 max-w-4xl w-full mx-auto border border-white/50"
     >
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 items-end">
         {/* Location Input */}
         <div className="relative">
           <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -60,7 +60,7 @@ const SearchBar = ({ onSearch }) => {
             <input
               type="text"
               placeholder="Enter location"
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all outline-none text-slate-900 placeholder-slate-400"
+              className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl focus:border-slate-500 focus:ring-2 focus:ring-slate-200 transition-all outline-none text-slate-900 placeholder-slate-400 bg-white"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
@@ -87,12 +87,12 @@ const SearchBar = ({ onSearch }) => {
               />
             </svg>
             <select
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all outline-none text-slate-900 appearance-none bg-white"
+              className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl focus:border-slate-500 focus:ring-2 focus:ring-slate-200 transition-all outline-none text-slate-900 appearance-none bg-white"
               value={type}
               onChange={(e) => setType(e.target.value)}
             >
               <option value="">All Types</option>
-              <option value="buy">Buy</option>
+              <option value="sell">Buy</option>
               <option value="rent">Rent</option>
             </select>
           </div>
@@ -103,7 +103,7 @@ const SearchBar = ({ onSearch }) => {
           <button
             type="submit"
             disabled={isSearching}
-            className="flex-1 py-2.5 bg-gradient-to-r from-slate-900 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-700 transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-slate-900/20 disabled:opacity-75 disabled:cursor-not-allowed hover:scale-105 active:scale-95 search-btn"
+            className="flex-1 py-2.5 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-800 transition-colors duration-200 flex items-center justify-center gap-2 shadow-lg shadow-slate-900/20 disabled:opacity-75 disabled:cursor-not-allowed"
           >
             {isSearching ? (
               <>
@@ -144,7 +144,7 @@ const SearchBar = ({ onSearch }) => {
           <button
             type="button"
             onClick={handleReset}
-            className="px-4 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-all duration-200 hover:scale-105 active:scale-95 hover:border-slate-400"
+            className="px-4 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-100 transition-colors duration-200 hover:border-slate-400"
             title="Reset filters"
           >
             <svg

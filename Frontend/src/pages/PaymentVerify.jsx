@@ -7,17 +7,48 @@ const PaymentVerify = () => {
   const [status, setStatus] = useState("verifying"); // verifying | success | failed
   const [message, setMessage] = useState("");
   const [amount, setAmount] = useState(null);
+  const [booking, setBooking] = useState(null);
+
+  const openChatWithSeller = () => {
+    if (!booking?.seller?._id) {
+      navigate("/chat");
+      return;
+    }
+
+    const params = new URLSearchParams({
+      recipientId: booking.seller._id,
+      bookingId: booking._id,
+      propertyId: booking.property?._id || "",
+      recipientName: booking.seller?.name || "Seller",
+    });
+
+    navigate(`/chat?${params.toString()}`);
+  };
 
   useEffect(() => {
     const verify = async () => {
       // eSewa sends a base64-encoded `data` query parameter on redirect
       const params = new URLSearchParams(window.location.search);
       const isMock = params.get("mock") === "1";
+      const mockBookingId = params.get("bookingId");
       const encodedData = params.get("data");
 
       if (isMock) {
         setStatus("success");
         setMessage("Payment confirmed in development fallback mode.");
+
+        if (mockBookingId) {
+          try {
+            const bookingRes = await axiosInstance.get(`/bookings/${mockBookingId}`);
+            if (bookingRes.data?.success && bookingRes.data?.data) {
+              setBooking(bookingRes.data.data);
+              setAmount(bookingRes.data.data?.price || bookingRes.data.data?.property?.price || null);
+            }
+          } catch (err) {
+            console.error("Failed to fetch mock booking details:", err);
+          }
+        }
+
         return;
       }
 
@@ -33,6 +64,9 @@ const PaymentVerify = () => {
           setStatus("success");
           setAmount(res.data.amount);
           setMessage(res.data.message || "Payment confirmed successfully!");
+          if (res.data.booking) {
+            setBooking(res.data.booking);
+          }
         } else {
           setStatus("failed");
           setMessage(res.data.error || "Payment verification failed.");
@@ -87,12 +121,13 @@ const PaymentVerify = () => {
               >
                 Back to Home
               </Link>
-              <Link
-                to="/chat"
+              <button
+                type="button"
+                onClick={openChatWithSeller}
                 className="w-full py-3 border-2 border-green-600 text-green-700 font-semibold rounded-xl hover:bg-green-50 transition-all"
               >
                 💬 Chat with Seller
-              </Link>
+              </button>
             </div>
           </>
         )}

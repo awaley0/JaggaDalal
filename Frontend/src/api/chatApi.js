@@ -61,6 +61,18 @@ export const getConversations = async () => {
 };
 
 /**
+ * Delete a full conversation for current user
+ */
+export const deleteConversation = async (conversationId) => {
+  try {
+    const response = await axios.delete(`/chat/conversations/${conversationId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to delete conversation' };
+  }
+};
+
+/**
  * Mark messages as read
  */
 export const markMessagesAsRead = async (conversationId) => {
@@ -81,6 +93,18 @@ export const deleteMessage = async (messageId) => {
     return response.data;
   } catch (error) {
     throw error.response?.data || { error: 'Failed to delete message' };
+  }
+};
+
+/**
+ * Update a message
+ */
+export const updateMessage = async (messageId, message) => {
+  try {
+    const response = await axios.put(`/chat/messages/${messageId}`, { message });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to update message' };
   }
 };
 

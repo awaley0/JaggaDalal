@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { addFavorite, removeFavorite, isFavorited } from "../api/favoriteApi";
 import { useAuth } from "../context/AuthContext";
+import { formatRs } from "../utils/currency";
 
 const PropertyCard = ({ property }) => {
   const { isAuthenticated } = useAuth();
@@ -58,7 +59,7 @@ const PropertyCard = ({ property }) => {
         {/* Image Container */}
         <div className="relative h-56 bg-slate-100 overflow-hidden">
           {!imageLoaded && (
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-200 to-slate-100 animate-pulse"></div>
+            <div className="absolute inset-0 bg-linear-to-r from-slate-200 to-slate-100 animate-pulse"></div>
           )}
           <img
             src={property.images?.[0] || property.image || "https://via.placeholder.com/400x300?text=No+Image"}
@@ -76,12 +77,12 @@ const PropertyCard = ({ property }) => {
           {/* Badges */}
           <div className="absolute top-3 left-3 flex gap-2">
             {property.featured && (
-              <span className="px-3 py-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold rounded-full shadow-lg">
+              <span className="px-3 py-1 bg-linear-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold rounded-full shadow-lg">
                 Featured
               </span>
             )}
             {property.verified && (
-              <span className="px-3 py-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-semibold rounded-full flex items-center gap-1 shadow-lg">
+              <span className="px-3 py-1 bg-linear-to-r from-emerald-500 to-teal-500 text-white text-xs font-semibold rounded-full flex items-center gap-1 shadow-lg">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
@@ -116,7 +117,7 @@ const PropertyCard = ({ property }) => {
           {/* Property Type Badge */}
           <div className="absolute bottom-3 right-3">
             <span className="px-3 py-1 bg-slate-900 text-white text-xs font-semibold rounded-full capitalize shadow-lg">
-              {property.type}
+              {property.listingType || property.type || "Property"}
             </span>
           </div>
         </div>
@@ -187,9 +188,9 @@ const PropertyCard = ({ property }) => {
 
           {/* Price Section */}
           <div className="mb-4">
-            <p className="text-2xl font-bold text-slate-900">{property.price}</p>
+            <p className="text-2xl font-bold text-slate-900">{formatRs(property.price)}</p>
             {property.pricePerMonth && (
-              <p className="text-sm text-slate-500">${property.pricePerMonth}/month</p>
+              <p className="text-sm text-slate-500">{formatRs(property.pricePerMonth)}/month</p>
             )}
           </div>
 
@@ -197,7 +198,7 @@ const PropertyCard = ({ property }) => {
           <div className="mb-4">
             <p className="text-xs text-slate-600 mb-2 font-semibold">Amenities</p>
             <div className="flex flex-wrap gap-1">
-              {property.amenities.slice(0, 3).map((amenity, idx) => (
+              {(property.amenities || []).slice(0, 3).map((amenity, idx) => (
                 <span
                   key={idx}
                   className="px-2 py-1 bg-slate-100 text-slate-700 text-xs rounded-full border border-slate-200"
@@ -205,16 +206,16 @@ const PropertyCard = ({ property }) => {
                   {amenity}
                 </span>
               ))}
-              {property.amenities.length > 3 && (
+              {(property.amenities || []).length > 3 && (
                 <span className="px-2 py-1 bg-slate-100 text-slate-700 text-xs rounded-full border border-slate-200">
-                  +{property.amenities.length - 3}
+                  +{(property.amenities || []).length - 3}
                 </span>
               )}
             </div>
           </div>
 
           {/* View Details Button */}
-          <button className="w-full py-2.5 bg-gradient-to-r from-slate-900 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-700 transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-slate-900/20 hover:shadow-lg hover:shadow-slate-900/30">
+          <button className="w-full py-2.5 bg-linear-to-r from-slate-900 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-700 transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-slate-900/20 hover:shadow-lg hover:shadow-slate-900/30">
             View Details
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

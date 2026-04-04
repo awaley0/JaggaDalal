@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "../api/axios";
 import LocationPicker from "./LocationPicker/LocationPicker";
+
+const MAX_IMAGES = 5;
 
 const PropertyFormModal = ({ isOpen, onClose, onPropertyAdded, editingProperty }) => {
   const [loading, setLoading] = useState(false);
@@ -31,6 +33,7 @@ const PropertyFormModal = ({ isOpen, onClose, onPropertyAdded, editingProperty }
 
   const [selectedImages, setSelectedImages] = useState([]);
   const [imagePreview, setImagePreview] = useState([]);
+  const imageInputRef = useRef(null);
 
   useEffect(() => {
     if (editingProperty) {
@@ -95,11 +98,35 @@ const PropertyFormModal = ({ isOpen, onClose, onPropertyAdded, editingProperty }
   };
 
   const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
-    setSelectedImages((prev) => [...prev, ...files]);
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-    const previews = files.map((file) => URL.createObjectURL(file));
+    const availableSlots = Math.max(MAX_IMAGES - imagePreview.length, 0);
+    const acceptedFiles = files.slice(0, availableSlots);
+
+    if (!acceptedFiles.length) {
+      setError(`You can upload up to ${MAX_IMAGES} images only.`);
+      e.target.value = "";
+      return;
+    }
+
+    setSelectedImages((prev) => [...prev, ...acceptedFiles]);
+
+    const previews = acceptedFiles.map((file) => URL.createObjectURL(file));
     setImagePreview((prev) => [...prev, ...previews]);
+
+    if (files.length > acceptedFiles.length) {
+      setError(`Only ${MAX_IMAGES} images are allowed. Extra files were skipped.`);
+    } else {
+      setError("");
+    }
+
+    // Allow selecting the same file again after removing.
+    e.target.value = "";
+  };
+
+  const handleOpenImagePicker = () => {
+    imageInputRef.current?.click();
   };
 
   const removeImage = (index) => {
@@ -182,7 +209,7 @@ const PropertyFormModal = ({ isOpen, onClose, onPropertyAdded, editingProperty }
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4 text-left">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4 text-left">
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <h2 className="text-2xl font-bold mb-4">
@@ -217,11 +244,11 @@ const PropertyFormModal = ({ isOpen, onClose, onPropertyAdded, editingProperty }
                 <option value="">Property Type</option>
                 <option value="apartment">Apartment</option>
                 <option value="house">House</option>
-                <option value="studio">Studio</option>
-                <option value="penthouse">Penthouse</option>
                 <option value="villa">Villa</option>
                 <option value="commercial">Commercial</option>
                 <option value="land">Land</option>
+                <option value="townhouse">Townhouse</option>
+                <option value="condo">Condo</option>
               </select>
 
               <select
@@ -232,7 +259,6 @@ const PropertyFormModal = ({ isOpen, onClose, onPropertyAdded, editingProperty }
               >
                 <option value="sell">For Sale</option>
                 <option value="rent">For Rent</option>
-                <option value="buy">Buy</option>
               </select>
 
               <input
@@ -315,15 +341,43 @@ const PropertyFormModal = ({ isOpen, onClose, onPropertyAdded, editingProperty }
             {/* Image Upload */}
             <div className="col-span-2 text-left">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Property Images (Up to 5)
+                Property Images (Up to {MAX_IMAGES})
               </label>
+
               <input
+                ref={imageInputRef}
                 type="file"
                 multiple
                 accept="image/*"
                 onChange={handleImageChange}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="hidden"
               />
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleOpenImagePicker}
+                  disabled={imagePreview.length >= MAX_IMAGES}
+                  className="px-4 py-2 border rounded-lg bg-white text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Choose Files
+                </button>
+
+                {imagePreview.length > 0 && imagePreview.length < MAX_IMAGES && (
+                  <button
+                    type="button"
+                    onClick={handleOpenImagePicker}
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                  >
+                    Add More
+                  </button>
+                )}
+
+                <span className="text-sm text-gray-600">
+                  {imagePreview.length}/{MAX_IMAGES} selected
+                </span>
+              </div>
+
               <p className="text-xs text-gray-500 mt-1">Supported: JPEG, PNG, WebP, GIF (Max 5MB each)</p>
             </div>
 

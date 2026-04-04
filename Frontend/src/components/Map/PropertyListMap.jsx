@@ -2,6 +2,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { formatRs } from '../../utils/currency';
 
 export default function PropertyListMap({ properties = [], onPropertySelect }) {
   const [selectedProperty, setSelectedProperty] = useState(null);
@@ -22,7 +23,7 @@ export default function PropertyListMap({ properties = [], onPropertySelect }) {
       html: `
         <div class="relative">
           <div style="background-color: ${color};" class="flex items-center justify-center w-14 h-10 rounded-full text-white text-xs font-bold shadow-lg border-2 border-white">
-            £${(price / 1000).toFixed(0)}k
+            Rs ${(price / 1000).toFixed(0)}k
           </div>
         </div>
       `,
@@ -63,7 +64,7 @@ export default function PropertyListMap({ properties = [], onPropertySelect }) {
                   )}
                   <h4 className="font-bold text-gray-800 text-lg">{property.name}</h4>
                   <p className="text-sm text-gray-600 mt-1">{property.address}</p>
-                  <p className="text-2xl font-bold text-blue-600 mt-3">£{property.price.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-blue-600 mt-3">{formatRs(property.price)}</p>
                   <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-200 text-xs text-gray-700">
                     <p>🛏️ {property.bedrooms} Beds</p>
                     <p>🚿 {property.bathrooms} Baths</p>

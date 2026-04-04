@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { XMarkIcon, MinusIcon } from '@heroicons/react/24/outline';
 import * as chatApi from '../../api/chatApi';
+import ChatService from '../../services/ChatService';
 
 const getStoredUserId = () => {
   try {
@@ -26,6 +27,7 @@ export default function PollingChatbox({
   bookingId = null,
   recipientName = 'Agent',
   isOpen = true,
+  embedded = true,
 }) {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
@@ -34,7 +36,14 @@ export default function PollingChatbox({
   const [error, setError] = useState(null);
   const [lastPolledTime, setLastPolledTime] = useState(Date.now());
   const [isPolling, setIsPolling] = useState(true);
+  const [isRecipientTyping, setIsRecipientTyping] = useState(false);
+  const [isRecipientOnline, setIsRecipientOnline] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingText, setEditingText] = useState('');
+  const [messageActionInProgress, setMessageActionInProgress] = useState(false);
   const pollingIntervalRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const stopTypingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
   const userId = getStoredUserId();
 
@@ -52,6 +61,7 @@ export default function PollingChatbox({
         if (response.success) {
           setMessages(response.messages || []);
           setLastPolledTime(Date.now());
+          await chatApi.markMessagesAsRead(recipientId);
         }
       } catch (err) {
         setError('Failed to load messages');
@@ -72,8 +82,21 @@ export default function PollingChatbox({
       try {
         const response = await chatApi.getPollingMessages(recipientId, lastPolledTime, propertyId);
         if (response.success && response.messages && response.messages.length > 0) {
-          setMessages((prev) => [...prev, ...response.messages]);
+          setMessages((prev) => {
+            const merged = [...prev, ...response.messages];
+            const deduped = [];
+            const seen = new Set();
+            for (const msg of merged) {
+              const key = String(msg._id || msg.id || `${msg.sender}-${msg.createdAt}-${msg.message}`);
+              if (!seen.has(key)) {
+                seen.add(key);
+                deduped.push(msg);
+              }
+            }
+            return deduped;
+          });
           setLastPolledTime(response.timestamp);
+          await chatApi.markMessagesAsRead(recipientId);
         }
       } catch (err) {
         console.error('Polling error:', err);
@@ -90,6 +113,51 @@ export default function PollingChatbox({
     };
   }, [isPolling, recipientId, propertyId, lastPolledTime, isMinimized]);
 
+  // Socket presence + typing listeners for real-time UX
+  useEffect(() => {
+    if (!userId || !recipientId) return;
+
+    ChatService.connect(userId);
+
+    const onStatusChanged = ({ userId: changedUserId, isOnline }) => {
+      if (String(changedUserId) === String(recipientId)) {
+        setIsRecipientOnline(Boolean(isOnline));
+      }
+    };
+
+    const onOnlineUsers = ({ userIds }) => {
+      const online = (userIds || []).map((id) => String(id)).includes(String(recipientId));
+      setIsRecipientOnline(online);
+    };
+
+    const onUserTyping = ({ senderId }) => {
+      if (String(senderId) === String(recipientId)) {
+        setIsRecipientTyping(true);
+      }
+    };
+
+    const onUserStoppedTyping = ({ senderId }) => {
+      if (String(senderId) === String(recipientId)) {
+        setIsRecipientTyping(false);
+      }
+    };
+
+    ChatService.on('user-status-changed', onStatusChanged);
+    ChatService.on('online-users', onOnlineUsers);
+    ChatService.on('user-typing', onUserTyping);
+    ChatService.on('user-stopped-typing', onUserStoppedTyping);
+
+    // Initialize immediate state if already known.
+    setIsRecipientOnline(ChatService.isUserOnline(recipientId));
+
+    return () => {
+      ChatService.off('user-status-changed', onStatusChanged);
+      ChatService.off('online-users', onOnlineUsers);
+      ChatService.off('user-typing', onUserTyping);
+      ChatService.off('user-stopped-typing', onUserStoppedTyping);
+    };
+  }, [userId, recipientId]);
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
 
@@ -98,6 +166,11 @@ export default function PollingChatbox({
     try {
       setIsLoading(true);
       setError(null);
+
+      // Ensure typing indicator is cleared after send.
+      ChatService.stopTyping(recipientId);
+      if (stopTypingTimeoutRef.current) clearTimeout(stopTypingTimeoutRef.current);
+      setIsRecipientTyping(false);
 
       const response = await chatApi.sendMessage(recipientId, message, propertyId || null, 'text');
 
@@ -113,6 +186,89 @@ export default function PollingChatbox({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleStartEdit = (msg) => {
+    if (msg.isDeleted) return;
+    setEditingMessageId(String(msg._id || msg.id));
+    setEditingText(msg.message || '');
+    setError(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditingText('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingMessageId || !editingText.trim()) return;
+
+    try {
+      setMessageActionInProgress(true);
+      const response = await chatApi.updateMessage(editingMessageId, editingText.trim());
+
+      if (response.success && response.data) {
+        setMessages((prev) =>
+          prev.map((msg) => {
+            const msgId = String(msg._id || msg.id);
+            return msgId === editingMessageId ? response.data : msg;
+          })
+        );
+        handleCancelEdit();
+      }
+    } catch (err) {
+      setError(err.error || 'Failed to update message');
+    } finally {
+      setMessageActionInProgress(false);
+    }
+  };
+
+  const handleDeleteMessage = async (msgId) => {
+    const confirmed = window.confirm('Delete this message?');
+    if (!confirmed) return;
+
+    try {
+      setMessageActionInProgress(true);
+      const response = await chatApi.deleteMessage(msgId);
+      if (response.success) {
+        setMessages((prev) =>
+          prev.map((msg) => {
+            const currentId = String(msg._id || msg.id);
+            if (currentId !== String(msgId)) return msg;
+            return {
+              ...msg,
+              isDeleted: true,
+              deletedAt: new Date().toISOString(),
+              message: 'This message was deleted',
+              attachmentUrl: null,
+            };
+          })
+        );
+      }
+    } catch (err) {
+      setError(err.error || 'Failed to delete message');
+    } finally {
+      setMessageActionInProgress(false);
+    }
+  };
+
+  const handleMessageInputChange = (e) => {
+    const value = e.target.value;
+    setMessage(value);
+
+    if (!value.trim()) {
+      ChatService.stopTyping(recipientId);
+      if (stopTypingTimeoutRef.current) clearTimeout(stopTypingTimeoutRef.current);
+      return;
+    }
+
+    ChatService.setTyping(recipientId);
+
+    // Debounce stop-typing event to avoid noisy emits.
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      ChatService.stopTyping(recipientId);
+    }, 1200);
   };
 
   // Format message timestamp
@@ -138,8 +294,14 @@ export default function PollingChatbox({
     );
   }
 
+  const getSenderId = (msg) => msg?.sender?._id || msg?.sender?.id || msg?.sender;
+
   return (
-    <div className="fixed bottom-4 right-4 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col z-50 max-h-[600px]">
+    <div
+      className={`bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden flex flex-col ${
+        embedded ? 'w-full h-[72vh] min-h-[520px]' : 'fixed bottom-4 right-4 w-96 z-50 max-h-[600px]'
+      }`}
+    >
       {/* Header */}
       <div className="bg-linear-to-r from-blue-600 to-blue-700 text-white px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -151,25 +313,33 @@ export default function PollingChatbox({
           </div>
           <div>
             <h3 className="font-bold">{recipientName}</h3>
-            <p className="text-xs opacity-80">🟢 Connected</p>
+            <p className="text-xs opacity-80">
+              {isRecipientTyping
+                ? '✍️ typing...'
+                : isRecipientOnline
+                ? '🟢 Online'
+                : '⚪ Offline'}
+            </p>
           </div>
         </div>
 
         <div className="flex gap-2">
-          <button
-            onClick={() => setIsMinimized(true)}
-            className="hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition"
-          >
-            <MinusIcon className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => {
-              /* Handle close */
-            }}
-            className="hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition"
-          >
-            <XMarkIcon className="w-5 h-5" />
-          </button>
+          {!embedded && (
+            <>
+              <button
+                onClick={() => setIsMinimized(true)}
+                className="hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition"
+              >
+                <MinusIcon className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setIsMinimized(true)}
+                className="hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -188,12 +358,13 @@ export default function PollingChatbox({
           </div>
         ) : (
           messages.map((msg, idx) => {
-            const isSent = msg.sender._id === userId || msg.sender === userId;
+            const senderId = String(getSenderId(msg));
+            const isSent = senderId === String(userId);
 
             return (
               <div key={msg._id || idx} className={`flex ${isSent ? 'justify-end' : 'justify-start'}`}>
                 <div
-                  className={`max-w-xs px-4 py-2 rounded-lg wrap-break-word ${
+                  className={`max-w-md px-4 py-2 rounded-lg wrap-break-word ${
                     isSent
                       ? 'bg-blue-600 text-white rounded-br-none'
                       : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
@@ -204,14 +375,75 @@ export default function PollingChatbox({
                       {msg.sender?.name || 'User'}
                     </p>
                   )}
-                  <p className="text-sm">{msg.message}</p>
+                  {editingMessageId === String(msg._id || msg.id) ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        className="w-full px-2 py-1 rounded-md border border-blue-300 text-sm text-gray-900"
+                        maxLength={1000}
+                        disabled={messageActionInProgress}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCancelEdit}
+                          className="text-xs px-2 py-1 rounded bg-gray-200 text-gray-700"
+                          disabled={messageActionInProgress}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveEdit}
+                          className="text-xs px-2 py-1 rounded bg-blue-800 text-white"
+                          disabled={messageActionInProgress || !editingText.trim()}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className={`text-sm ${msg.isDeleted ? 'italic opacity-80' : ''}`}>{msg.message}</p>
+                  )}
                   <p
                     className={`text-xs mt-1 ${
                       isSent ? 'text-blue-100' : 'text-gray-500'
                     }`}
                   >
                     {formatTime(msg.createdAt || msg.timestamp)}
+                    {msg.isEdited && !msg.isDeleted ? ' • edited' : ''}
                   </p>
+                  {isSent && (
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <div className="flex gap-2 text-[11px] text-blue-100">
+                        {!msg.isDeleted && editingMessageId !== String(msg._id || msg.id) && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(msg)}
+                              className="hover:underline"
+                              disabled={messageActionInProgress}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMessage(String(msg._id || msg.id))}
+                              className="hover:underline"
+                              disabled={messageActionInProgress}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-blue-100 text-right">
+                        {msg.isRead ? 'Seen' : 'Delivered'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -233,7 +465,7 @@ export default function PollingChatbox({
           <input
             type="text"
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleMessageInputChange}
             placeholder="Type message..."
             disabled={isLoading}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"

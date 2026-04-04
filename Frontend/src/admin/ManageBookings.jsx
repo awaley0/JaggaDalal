@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getAllBookingsForAdmin, updateBookingStatus, deleteBookingByAdmin } from "../api/adminApi";
+import { formatRs } from "../utils/currency";
 
 const ManageBookings = () => {
   const [bookings, setBookings] = useState([]);
@@ -78,6 +79,11 @@ const ManageBookings = () => {
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const getBookingAmount = (booking) => {
+    const amount = booking?.price ?? booking?.property?.price ?? 0;
+    return Number.isFinite(Number(amount)) ? Number(amount) : 0;
   };
 
   return (
@@ -169,7 +175,7 @@ const ManageBookings = () => {
                   <td className="px-6 py-4 text-sm">
                     {booking.checkOutDate ? new Date(booking.checkOutDate).toLocaleDateString() : "N/A"}
                   </td>
-                  <td className="px-6 py-4 text-sm font-semibold">${booking.price?.toLocaleString() || "0"}</td>
+                  <td className="px-6 py-4 text-sm font-semibold">{formatRs(getBookingAmount(booking))}</td>
                   <td className="px-6 py-4 text-sm">
                     <select
                       value={booking.status}
@@ -310,7 +316,7 @@ const ManageBookings = () => {
               {/* Price Information */}
               <div>
                 <p className="text-sm text-gray-600">Price</p>
-                <p className="text-2xl font-bold text-green-600">${selectedBooking.price?.toLocaleString() || "0"}</p>
+                <p className="text-2xl font-bold text-green-600">{formatRs(getBookingAmount(selectedBooking))}</p>
               </div>
 
               {/* Notes */}

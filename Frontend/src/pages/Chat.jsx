@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import * as chatApi from '../api/chatApi';
 import PollingChatbox from '../components/Chat/PollingChatbox';
@@ -12,6 +12,7 @@ import axiosInstance from '../api/axios';
  */
 export default function Chat() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated } = useAuth();
 
   const [activeTab, setActiveTab] = useState('conversations'); // 'conversations' or 'bookings'
@@ -23,6 +24,26 @@ export default function Chat() {
   const [success, setSuccess] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [initChatLoading, setInitChatLoading] = useState(null);
+  const [deletingConversationId, setDeletingConversationId] = useState(null);
+
+  // Parse deep-link params (used from payment success page)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const recipientId = params.get('recipientId');
+    const bookingId = params.get('bookingId');
+    const propertyId = params.get('propertyId');
+    const recipientName = params.get('recipientName');
+
+    if (recipientId) {
+      setSelectedChat({
+        conversationId: recipientId,
+        bookingId: bookingId || null,
+        propertyId: propertyId || null,
+        userName: recipientName || 'Seller',
+      });
+      setActiveTab('conversations');
+    }
+  }, [location.search]);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -123,6 +144,34 @@ export default function Chat() {
     });
   };
 
+  const handleDeleteConversation = async (conversationId, userName) => {
+    const confirmed = window.confirm(`Delete chat with ${userName}? This removes it only from your account.`);
+    if (!confirmed) return;
+
+    try {
+      setDeletingConversationId(String(conversationId));
+      setError('');
+      setSuccess('');
+
+      const response = await chatApi.deleteConversation(conversationId);
+      if (response.success) {
+        setConversations((prev) =>
+          prev.filter((conv) => String(conv.conversationId) !== String(conversationId))
+        );
+
+        if (String(selectedChat?.conversationId) === String(conversationId)) {
+          setSelectedChat(null);
+        }
+
+        setSuccess('Conversation deleted successfully.');
+      }
+    } catch (err) {
+      setError(err.error || 'Failed to delete conversation');
+    } finally {
+      setDeletingConversationId(null);
+    }
+  };
+
   const filteredConversations = conversations.filter((conv) =>
     conv.user.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -211,10 +260,9 @@ export default function Chat() {
                 ) : (
                   <div className="divide-y">
                     {filteredConversations.map((conv) => (
-                      <button
+                      <div
                         key={conv.conversationId}
-                        onClick={() => handleSelectConversation(conv)}
-                        className={`w-full text-left p-4 hover:bg-blue-50 transition ${
+                        className={`p-4 hover:bg-blue-50 transition ${
                           selectedChat?.conversationId === conv.conversationId
                             ? 'bg-blue-100 border-l-4 border-blue-600'
                             : ''
@@ -233,20 +281,35 @@ export default function Chat() {
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900 truncate">
-                              {conv.user.name}
-                            </p>
-                            <p className="text-sm text-gray-600 truncate">
-                              {conv.lastMessage || 'No messages'}
-                            </p>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectConversation(conv)}
+                              className="w-full text-left"
+                            >
+                              <p className="font-semibold text-gray-900 truncate">
+                                {conv.user.name}
+                              </p>
+                              <p className="text-sm text-gray-600 truncate">
+                                {conv.lastMessage || 'No messages'}
+                              </p>
+                            </button>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteConversation(conv.conversationId, conv.user.name)}
+                            disabled={deletingConversationId === String(conv.conversationId)}
+                            className="text-xs px-2 py-1 rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-60"
+                            title="Delete chat"
+                          >
+                            {deletingConversationId === String(conv.conversationId) ? 'Deleting...' : 'Delete'}
+                          </button>
                           {conv.unreadCount > 0 && (
                             <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
                               {conv.unreadCount}
                             </span>
                           )}
                         </div>
-                      </button>
+                      </div>
                     ))}
                   </div>
                 )

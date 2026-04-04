@@ -53,6 +53,19 @@ export const getBookingById = async (bookingId) => {
 };
 
 /**
+ * Update booking details (buyer, pending only)
+ */
+export const updateBooking = async (bookingId, payload) => {
+  try {
+    const response = await axiosInstance.put(`/bookings/${bookingId}`, payload);
+    return response.data;
+  } catch (error) {
+    console.error("Error updating booking:", error);
+    throw error;
+  }
+};
+
+/**
  * Update booking status
  */
 export const updateBookingStatus = async (bookingId, status) => {
