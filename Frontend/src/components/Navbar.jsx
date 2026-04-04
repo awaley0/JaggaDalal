@@ -11,7 +11,7 @@ const Navbar = () => {
   const handleLogout = () => {
     logout();
     setIsOpen(false);
-    navigate("/login");
+    navigate("/buyer/login");
   };
 
   const getInitials = (name) => {
@@ -24,10 +24,10 @@ const Navbar = () => {
 
   const navLinks = [
     { to: "/", label: "Home" },
-    { to: "/buy", label: "Buy" },
+    { to: "/buy", label: "Buy", hideFor: "seller" },
     { to: "/rent", label: "Rent" },
-    { to: "/sell", label: "Sell" },
-  ];
+    { to: "/sell", label: "Sell", hideFor: "buyer" },
+  ].filter(link => !user || link.hideFor !== user.role);
 
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
@@ -139,14 +139,20 @@ const Navbar = () => {
               // Not Logged In
               <>
                 <Link
-                  to="/login"
+                  to="/buyer/login"
                   className="px-4 py-2 text-slate-700 font-medium hover:text-amber-600 transition-colors"
                 >
-                  Login
+                  Buyer Login
                 </Link>
                 <Link
-                  to="/signup"
-                  className="px-4 py-2 bg-gradient-to-r from-slate-900 to-slate-800 text-white font-medium rounded-lg hover:from-slate-800 hover:to-slate-700 transition-all duration-200 shadow-lg shadow-slate-900/20"
+                  to="/seller/login"
+                  className="px-4 py-2 text-slate-600 font-medium hover:text-amber-600 transition-colors"
+                >
+                  Seller Login
+                </Link>
+                <Link
+                  to="/buyer/signup"
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-800 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-900 transition-all duration-200 shadow-lg shadow-blue-600/20"
                 >
                   Sign Up
                 </Link>
@@ -225,14 +231,20 @@ const Navbar = () => {
               ) : (
                 <>
                   <Link
-                    to="/login"
+                    to="/buyer/login"
                     className="block px-4 py-2 text-slate-700 hover:bg-slate-50 font-medium transition-colors"
                   >
-                    Login
+                    Buyer Login
                   </Link>
                   <Link
-                    to="/signup"
-                    className="block px-4 py-2 bg-gradient-to-r from-slate-900 to-slate-800 text-white font-medium rounded-lg hover:from-slate-800 hover:to-slate-700 transition-all duration-200 text-center"
+                    to="/seller/login"
+                    className="block px-4 py-2 text-slate-700 hover:bg-slate-50 font-medium transition-colors"
+                  >
+                    Seller Login
+                  </Link>
+                  <Link
+                    to="/buyer/signup"
+                    className="block px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-800 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-900 transition-all duration-200 text-center"
                   >
                     Sign Up
                   </Link>

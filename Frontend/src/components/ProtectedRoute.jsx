@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 /**
  * ProtectedRoute Component
  * Ensures only authenticated users can access protected routes
- * Redirects to login if user is not authenticated
+ * Redirects to buyer login if user is not authenticated
  */
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -18,7 +18,7 @@ const ProtectedRoute = ({ children }) => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/buyer/login" replace />;
   }
 
   return children;

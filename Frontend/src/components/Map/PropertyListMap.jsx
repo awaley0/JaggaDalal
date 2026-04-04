@@ -41,7 +41,7 @@ export default function PropertyListMap({ properties = [], onPropertySelect }) {
         />
         {properties.map((property) => (
           <Marker
-            key={property.id}
+            key={property._id || property.id}
             position={[property.latitude || 51.505, property.longitude || -0.09]}
             icon={createDivIcon(property.price)}
             eventHandlers={{
@@ -51,7 +51,7 @@ export default function PropertyListMap({ properties = [], onPropertySelect }) {
               },
             }}
           >
-            {selectedProperty?.id === property.id && (
+            {(selectedProperty?._id || selectedProperty?.id) === (property._id || property.id) && (
               <Popup>
                 <div className="p-4 w-80">
                   {property.image && (

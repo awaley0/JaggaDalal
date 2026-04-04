@@ -1,5 +1,24 @@
 import { io } from 'socket.io-client';
 
+const getSocketBaseUrl = () => {
+  const apiBase = import.meta.env.VITE_API_BASE_URL;
+  if (apiBase) {
+    return apiBase.replace(/\/api\/?$/, '');
+  }
+  return import.meta.env.VITE_API_URL || 'http://localhost:5000';
+};
+
+const getStoredUserId = () => {
+  try {
+    const raw = localStorage.getItem('user');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.id || parsed?._id || null;
+  } catch {
+    return null;
+  }
+};
+
 class ChatService {
   constructor() {
     this.socket = null;
@@ -10,8 +29,10 @@ class ChatService {
   connect(userId) {
     if (this.socket?.connected) return;
 
-    this.userId = userId;
-    this.socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+    this.userId = userId || getStoredUserId();
+    if (!this.userId) return;
+
+    this.socket = io(getSocketBaseUrl(), {
       auth: {
         token: localStorage.getItem('token'),
       },
@@ -25,8 +46,8 @@ class ChatService {
     // Connection events
     this.socket.on('connect', () => {
       console.log('✅ Socket.IO connected');
-      this.socket.emit('user-online', userId);
-      this.emit('connected', { userId });
+      this.socket.emit('user-online', this.userId);
+      this.emit('connected', { userId: this.userId });
     });
 
     this.socket.on('disconnect', () => {
@@ -56,8 +77,8 @@ class ChatService {
       this.emit('user-stopped-typing', data);
     });
 
-    this.socket.on('user-online', (data) => {
-      this.emit('user-online', data);
+    this.socket.on('user-status-changed', (data) => {
+      this.emit('user-status-changed', data);
     });
   }
 

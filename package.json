@@ -1,0 +1,17 @@
+{
+  "name": "real-estate-platform",
+  "version": "1.0.0",
+  "description": "Full-stack real estate platform with buyer, seller, and admin interfaces",
+  "scripts": {
+    "dev": "run-p dev:frontend dev:backend",
+    "dev:frontend": "cd Frontend && npm run dev",
+    "dev:backend": "cd Backend && npm run dev",
+    "build": "run-p build:frontend build:backend",
+    "build:frontend": "cd Frontend && npm run build",
+    "build:backend": "cd Backend && npm run build"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "npm-run-all": "^4.1.5"
+  }
+}

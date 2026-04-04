@@ -1,14 +1,35 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import properties from "../data/properties";
+import properties from "../data/properties"; // Fallback static data
+import { useAuth } from "../context/AuthContext";
+import axiosInstance from "../api/axios";
+import { getPropertyById } from "../api/propertyApi";
+import PropertyDetailsMap from "../components/Map/PropertyDetailsMap";
+import { addFavorite, removeFavorite, isFavorited } from "../api/favoriteApi";
 
 const PropertyDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [property, setProperty] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
+  const [contactLoading, setContactLoading] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [fallbackPayLoading, setFallbackPayLoading] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+  const [bookingForm, setBookingForm] = useState({
+    checkInDate: "",
+    checkOutDate: "",
+    numberOfGuests: "",
+    numberOfRooms: "",
+    notes: "",
+  });
+  const [esewaPayload, setEsewaPayload] = useState(null); // eSewa payload after booking created
+  const [createdBooking, setCreatedBooking] = useState(null);
   const [contactForm, setContactForm] = useState({
     name: "",
     email: "",
@@ -17,12 +38,44 @@ const PropertyDetails = () => {
   });
 
   useEffect(() => {
-    const foundProperty = properties.find((p) => p.id === parseInt(id));
-    if (foundProperty) {
-      setProperty(foundProperty);
-    } else {
-      navigate("/");
-    }
+    const fetchProperty = async () => {
+      try {
+        // Try to fetch from API first
+        const response = await getPropertyById(id);
+        if (response.success && response.data) {
+          setProperty(response.data);
+          
+          // Check if property is favorited
+          if (isAuthenticated) {
+            try {
+              const favorited = await isFavorited(response.data._id);
+              setIsFavorite(favorited);
+            } catch (err) {
+              console.error("Error checking favorite status:", err);
+            }
+          }
+        } else {
+          // Fallback to static data
+          const foundProperty = properties.find((p) => p.id === parseInt(id));
+          if (foundProperty) {
+            setProperty(foundProperty);
+          } else {
+            navigate("/");
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching property:", error);
+        // Fallback to static data if API fails
+        const foundProperty = properties.find((p) => p.id === parseInt(id));
+        if (foundProperty) {
+          setProperty(foundProperty);
+        } else {
+          navigate("/");
+        }
+      }
+    };
+
+    fetchProperty();
   }, [id, navigate]);
 
   const handleContactChange = (e) => {
@@ -30,17 +83,139 @@ const PropertyDetails = () => {
     setContactForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleContactSubmit = (e) => {
+  const handleContactSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Send contact form to backend
-    alert("Thank you! The property agent will contact you soon.");
-    setContactForm({ name: "", email: "", phone: "", message: "" });
-    setShowContactForm(false);
+
+    if (!isAuthenticated) {
+      alert("Please log in to contact the seller.");
+      navigate("/login");
+      return;
+    }
+
+    const sellerId = property?.seller?._id;
+    if (!sellerId) {
+      alert("Seller information is unavailable for this property.");
+      return;
+    }
+
+    try {
+      setContactLoading(true);
+      const inquiryMessage = [
+        `Property inquiry for \"${property.title}\"`,
+        contactForm.message,
+        `Contact: ${contactForm.name} | ${contactForm.email}${contactForm.phone ? ` | ${contactForm.phone}` : ''}`,
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+
+      await axiosInstance.post("/chat/send", {
+        receiverId: sellerId,
+        propertyId: property._id || property.id,
+        message: inquiryMessage,
+        messageType: "text",
+      });
+
+      alert("Your message has been sent to the seller.");
+      setContactForm({ name: "", email: "", phone: "", message: "" });
+      setShowContactForm(false);
+    } catch (error) {
+      console.error("Contact inquiry error:", error);
+      alert(error.response?.data?.error || "Failed to send your inquiry. Please try again.");
+    } finally {
+      setContactLoading(false);
+    }
   };
 
-  const toggleFavorite = () => {
-    setIsFavorite(!isFavorite);
-    // TODO: Save to backend
+  const handleBookingChange = (e) => {
+    const { name, value } = e.target;
+    setBookingForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleBookingSubmit = async (e) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      navigate("/login");
+      return;
+    }
+
+    setBookingLoading(true);
+    setBookingError("");
+
+    try {
+      const payload = {
+        propertyId: property._id || property.id,
+        checkInDate: bookingForm.checkInDate || undefined,
+        checkOutDate: bookingForm.checkOutDate || undefined,
+        numberOfGuests: bookingForm.numberOfGuests ? parseInt(bookingForm.numberOfGuests) : undefined,
+        numberOfRooms: bookingForm.numberOfRooms ? parseInt(bookingForm.numberOfRooms) : undefined,
+        notes: bookingForm.notes,
+      };
+
+      const response = await axiosInstance.post("/bookings", payload);
+
+      if (response.data.success) {
+        // Store the booking + eSewa payload so we can show the payment step
+        setCreatedBooking(response.data.data.booking);
+        setEsewaPayload(response.data.data.esewaPayload);
+      }
+    } catch (error) {
+      const message = error.response?.data?.error || "Failed to create booking. Please try again.";
+      setBookingError(message);
+      console.error("Booking error:", error);
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  // Auto-submit the hidden eSewa form to redirect user to payment gateway
+  const handlePayWithEsewa = () => {
+    const form = document.getElementById("esewa-payment-form");
+    if (form) form.submit();
+  };
+
+  const handleSandboxFallbackConfirm = async () => {
+    if (!createdBooking?._id) return;
+
+    try {
+      setFallbackPayLoading(true);
+      setBookingError("");
+      const res = await axiosInstance.post(`/bookings/payment/mock-confirm/${createdBooking._id}`);
+
+      if (res.data?.success) {
+        alert("Payment confirmed in sandbox fallback mode.");
+        navigate("/payment/verify?mock=1");
+      }
+    } catch (error) {
+      const message = error.response?.data?.error || "Fallback payment confirmation failed.";
+      setBookingError(message);
+    } finally {
+      setFallbackPayLoading(false);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    if (!isAuthenticated) {
+      alert("Please log in to add favorites!");
+      return;
+    }
+
+    setFavLoading(true);
+    try {
+      if (isFavorite) {
+        // Remove from favorites
+        await removeFavorite(property._id || id);
+        setIsFavorite(false);
+      } else {
+        // Add to favorites
+        await addFavorite(property._id || id);
+        setIsFavorite(true);
+      }
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      alert("Failed to update favorite. Please try again.");
+    } finally {
+      setFavLoading(false);
+    }
   };
 
   if (!property) {
@@ -93,28 +268,33 @@ const PropertyDetails = () => {
             {/* Main Image */}
             <div className="relative bg-gray-300 rounded-lg overflow-hidden mb-4 h-96">
               <img
-                src={property.image}
+                src={property.images?.[selectedImage] || property.image || "https://via.placeholder.com/800x400?text=No+Image"}
                 alt={property.title}
+                onError={(e) => {
+                  e.target.src = "https://via.placeholder.com/800x400?text=No+Image";
+                }}
                 className="w-full h-full object-cover"
               />
               <button
                 onClick={toggleFavorite}
-                className={`absolute top-4 right-4 p-3 rounded-full transition-all ${
+                disabled={favLoading}
+                className={`absolute top-4 right-4 p-3 rounded-full transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed ${
                   isFavorite
-                    ? "bg-red-600 text-white"
-                    : "bg-white text-gray-600 hover:text-red-600"
+                    ? "bg-red-600 text-white hover:bg-red-700"
+                    : "bg-white text-gray-600 hover:bg-red-50 hover:text-red-600"
                 }`}
+                title={isFavorite ? "Remove from favorites" : "Add to favorites"}
               >
                 <svg
-                  className="w-6 h-6"
+                  className={`w-6 h-6 transition-transform ${favLoading ? "animate-pulse" : ""}`}
                   fill={isFavorite ? "currentColor" : "none"}
                   stroke="currentColor"
+                  strokeWidth={isFavorite ? 0 : 2}
                   viewBox="0 0 24 24"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
                     d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
                   />
                 </svg>
@@ -129,9 +309,9 @@ const PropertyDetails = () => {
             </div>
 
             {/* Gallery Thumbnails */}
-            <div className="grid grid-cols-4 gap-2 mb-6">
-              {[property.image, property.image, property.image, property.image].map(
-                (img, idx) => (
+            {property.images && property.images.length > 0 && (
+              <div className="grid grid-cols-4 gap-2 mb-6">
+                {property.images.slice(0, 4).map((img, idx) => (
                   <button
                     key={idx}
                     onClick={() => setSelectedImage(idx)}
@@ -144,12 +324,15 @@ const PropertyDetails = () => {
                     <img
                       src={img}
                       alt={`Gallery ${idx}`}
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/100x100?text=No+Image";
+                      }}
                       className="w-full h-full object-cover"
                     />
                   </button>
-                )
-              )}
-            </div>
+                ))}
+              </div>
+            )}
 
             {/* Property Details */}
             <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
@@ -257,6 +440,18 @@ const PropertyDetails = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Location Map */}
+              {property.address?.coordinates && (
+                <div className="mt-8">
+                  <PropertyDetailsMap
+                    latitude={property.address.coordinates.latitude}
+                    longitude={property.address.coordinates.longitude}
+                    address={property.location || property.address?.street}
+                    propertyTitle={property.title}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -282,26 +477,75 @@ const PropertyDetails = () => {
                 </p>
               </div>
 
-              {/* Contact Buttons */}
+              {/* Contact/Booking Buttons */}
               <div className="space-y-3 mb-6">
+                {/* Booking Button - For Rentals */}
+                {property.listingType === "rent" && (
+                  <button
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        navigate("/login");
+                      } else {
+                        setShowBookingModal(true);
+                      }
+                    }}
+                    className="block w-full py-2.5 text-center bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all"
+                  >
+                    📅 Book Now
+                  </button>
+                )}
+
+                {/* Purchase/Inquiry Button - For Sales */}
+                {property.listingType === "sell" && (
+                  <button
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        navigate("/login");
+                      } else {
+                        setShowContactForm(true);
+                      }
+                    }}
+                    className="block w-full py-2.5 text-center bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all"
+                  >
+                    💼 Inquire Now
+                  </button>
+                )}
+
                 <a
                   href="tel:+1234567890"
                   className="block w-full py-2.5 text-center bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all"
                 >
-                  Call Agent
+                  📞 Call Agent
                 </a>
                 <a
                   href="mailto:agent@example.com"
                   className="block w-full py-2.5 text-center border border-blue-600 text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-all"
                 >
-                  Email Agent
+                  ✉️ Email Agent
                 </a>
+
+                {/* Book Property Button - Always Visible */}
                 <button
-                  onClick={() => setShowContactForm(!showContactForm)}
-                  className="block w-full py-2.5 text-center bg-gray-100 text-gray-900 font-semibold rounded-lg hover:bg-gray-200 transition-all"
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      navigate("/login");
+                    } else {
+                      setShowBookingModal(true);
+                    }
+                  }}
+                  className="block w-full py-2.5 text-center bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-all shadow-md hover:shadow-lg"
                 >
-                  Send Message
+                  🔖 Book Property
                 </button>
+
+                {property.listingType === "sell" && (
+                  <button
+                    onClick={() => setShowContactForm(!showContactForm)}
+                    className="block w-full py-2.5 text-center bg-gray-100 text-gray-900 font-semibold rounded-lg hover:bg-gray-200 transition-all"
+                  >
+                    💬 Send Message
+                  </button>
+                )}
               </div>
 
               {/* Contact Form */}
@@ -345,9 +589,10 @@ const PropertyDetails = () => {
                   ></textarea>
                   <button
                     type="submit"
-                    className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all"
+                    disabled={contactLoading}
+                    className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all disabled:opacity-60"
                   >
-                    Send Message
+                    {contactLoading ? "Sending..." : "Send Message"}
                   </button>
                 </form>
               )}
@@ -356,7 +601,7 @@ const PropertyDetails = () => {
               <div className="bg-blue-50 rounded-lg p-4 space-y-3">
                 <p className="text-sm text-gray-700">
                   <span className="font-semibold">Property ID:</span>{" "}
-                  {property.id.toString().padStart(6, "0")}
+                  {(property._id || property.id || "N/A").toString().slice(-6)}
                 </p>
                 <p className="text-sm text-gray-700">
                   <span className="font-semibold">Type:</span>{" "}
@@ -418,6 +663,290 @@ const PropertyDetails = () => {
                   </div>
                 </Link>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Booking Modal */}
+        {showBookingModal && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto"
+            onClick={() => {
+              setShowBookingModal(false);
+              setBookingError("");
+              setEsewaPayload(null);
+            }}
+          >
+            <div 
+              className="bg-white rounded-lg max-w-2xl w-full p-6 my-8 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pb-4 border-b">
+                <h2 className="text-2xl font-bold text-gray-900">📋 Book Property</h2>
+                <button
+                  onClick={() => {
+                    setShowBookingModal(false);
+                    setBookingError("");
+                    setEsewaPayload(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full transition"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p className="text-gray-600 mb-4">
+                Complete your booking for <span className="font-semibold text-blue-600">{property.title}</span>
+              </p>
+
+              {bookingError && (
+                <div className="mb-4 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
+                  <p className="text-red-700 text-sm font-semibold">⚠️ {bookingError}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleBookingSubmit} className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                {/* User Details Section */}
+                <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                  <h3 className="font-semibold text-gray-900 mb-3">Your Details</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Name
+                      </label>
+                      <input
+                        type="text"
+                        value={user?.name || ""}
+                        disabled
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={user?.email || ""}
+                        disabled
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Phone
+                      </label>
+                      <input
+                        type="tel"
+                        value={user?.phone || ""}
+                        disabled
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Property Details */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Property
+                  </label>
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
+                    <p className="font-semibold text-gray-900">{property.title}</p>
+                    <p className="text-sm text-gray-600">{property.location}</p>
+                  </div>
+                </div>
+
+                {/* Booking Details */}
+                <div className="border-t pt-4">
+                  <h3 className="font-semibold text-gray-900 mb-3">Booking Details</h3>
+
+                  {/* For Rentals - Check-in and Check-out Dates */}
+                  {property.listingType === "rent" && (
+                    <>
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Check-in Date
+                          </label>
+                          <input
+                            type="date"
+                            name="checkInDate"
+                            value={bookingForm.checkInDate}
+                            onChange={handleBookingChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Check-out Date
+                          </label>
+                          <input
+                            type="date"
+                            name="checkOutDate"
+                            value={bookingForm.checkOutDate}
+                            onChange={handleBookingChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Number of Guests
+                          </label>
+                          <input
+                            type="number"
+                            name="numberOfGuests"
+                            min="1"
+                            value={bookingForm.numberOfGuests}
+                            onChange={handleBookingChange}
+                            placeholder="e.g., 2"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Number of Rooms
+                          </label>
+                          <input
+                            type="number"
+                            name="numberOfRooms"
+                            min="1"
+                            value={bookingForm.numberOfRooms}
+                            onChange={handleBookingChange}
+                            placeholder="e.g., 1"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="bg-green-50 p-3 rounded-lg mb-3">
+                        <p className="text-sm text-gray-700">
+                          <span className="font-semibold">Monthly Rent:</span> $
+                          {property.price?.toLocaleString() || "N/A"}
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  {/* For Sales - Just show price */}
+                  {property.listingType === "sell" && (
+                    <div className="bg-green-50 p-3 rounded-lg mb-3">
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Price:</span> $
+                        {property.price?.toLocaleString() || "N/A"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Additional Notes (Optional)
+                  </label>
+                  <textarea
+                    name="notes"
+                    placeholder="Any specific requirements or questions?"
+                    value={bookingForm.notes}
+                    onChange={handleBookingChange}
+                    rows="3"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 resize-none"
+                  ></textarea>
+                </div>
+
+                {/* Error Message */}
+                {bookingError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p className="text-red-700 text-sm">{bookingError}</p>
+                  </div>
+                )}
+
+                {/* Step 2: eSewa Payment — shown after booking is created */}
+                {esewaPayload && (
+                  <div className="mt-6 p-5 bg-linear-to-br from-green-50 to-emerald-50 border-2 border-green-400 rounded-xl">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
+                        <span className="text-white text-lg">✓</span>
+                      </div>
+                      <div>
+                        <p className="font-bold text-green-800 text-lg">Booking Created!</p>
+                        <p className="text-green-700 text-sm">Complete your payment to confirm.</p>
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 mb-4 border border-green-200">
+                      <p className="text-sm text-gray-600">Amount to Pay</p>
+                      <p className="text-2xl font-bold text-gray-900">Rs. {esewaPayload.total_amount?.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500 mt-1">Property: {property.title}</p>
+                    </div>
+
+                    {/* Hidden eSewa form that auto-submits to gateway */}
+                    <form
+                      id="esewa-payment-form"
+                      action="https://rc-epay.esewa.com.np/api/epay/main/v2/form"
+                      method="POST"
+                      className="hidden"
+                    >
+                      {esewaPayload && Object.entries(esewaPayload).map(([key, val]) => (
+                        <input key={key} type="hidden" name={key} value={val} />
+                      ))}
+                    </form>
+
+                    <button
+                      type="button"
+                      onClick={handlePayWithEsewa}
+                      className="w-full py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-all text-lg shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
+                    >
+                      <img
+                        src="https://esewa.com.np/common/images/esewa_logo.png"
+                        alt="eSewa"
+                        className="h-6 object-contain bg-white rounded px-1"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                      Pay with eSewa
+                    </button>
+                    <p className="text-xs text-center text-gray-500 mt-2">
+                      You will be redirected to eSewa secure payment gateway
+                    </p>
+
+                    {import.meta.env.DEV && createdBooking?._id && (
+                      <button
+                        type="button"
+                        onClick={handleSandboxFallbackConfirm}
+                        disabled={fallbackPayLoading}
+                        className="w-full mt-3 py-2.5 border-2 border-amber-500 text-amber-700 font-semibold rounded-xl hover:bg-amber-50 transition-all disabled:opacity-60"
+                      >
+                        {fallbackPayLoading ? "Processing..." : "Sandbox Down? Confirm Payment (Dev Fallback)"}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 1: Confirm Booking Buttons */}
+                {!esewaPayload && (
+                  <div className="flex gap-3 pt-6 border-t mt-6 sticky bottom-0 bg-white">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowBookingModal(false);
+                        setBookingError("");
+                      }}
+                      className="flex-1 py-3 text-center border-2 border-gray-300 text-gray-900 font-semibold rounded-lg hover:bg-gray-50 transition-all text-lg"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={bookingLoading}
+                      className="flex-1 py-3 text-center bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-lg shadow-lg hover:shadow-xl"
+                    >
+                      {bookingLoading ? "⏳ Processing..." : "✓ Confirm Booking"}
+                    </button>
+                  </div>
+                )}
+              </form>
             </div>
           </div>
         )}

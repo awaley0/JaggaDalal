@@ -1,351 +1,336 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import chatService from '../services/ChatService';
+import * as chatApi from '../api/chatApi';
+import PollingChatbox from '../components/Chat/PollingChatbox';
 import axiosInstance from '../api/axios';
 
-export default function ChatPortal() {
+/**
+ * Chat Page
+ * Comprehensive chat module with conversations, confirmed bookings, and messaging
+ * Available for: Admin, Sellers, Buyers
+ */
+export default function Chat() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
+  const [activeTab, setActiveTab] = useState('conversations'); // 'conversations' or 'bookings'
   const [conversations, setConversations] = useState([]);
-  const [selectedConversation, setSelectedConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [isTyping, setIsTyping] = useState(false);
-  const [usersTyping, setUsersTyping] = useState({});
-  const [onlineUsers, setOnlineUsers] = useState(new Set());
-  const messagesEndRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
+  const [confirmedBookings, setConfirmedBookings] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [initChatLoading, setInitChatLoading] = useState(null);
 
-  // Initialize chat service
+  // Redirect if not logged in
   useEffect(() => {
-    if (!user) {
+    if (!isAuthenticated) {
       navigate('/login');
-      return;
     }
+  }, [isAuthenticated, navigate]);
 
-    chatService.connect(user.id);
+  // Load conversations and bookings
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadConversations();
+      loadConfirmedBookings();
+    }
+  }, [isAuthenticated, user]);
 
-    // Listen for real-time events
-    chatService.on('connected', () => {
-      console.log('Chat service connected');
-    });
-
-    chatService.on('message-received', (message) => {
-      if (selectedConversation && message.sender === selectedConversation) {
-        setMessages((prev) => [...prev, message]);
+  const loadConversations = async () => {
+    try {
+      setIsLoading(true);
+      const response = await chatApi.getConversations();
+      if (response.success) {
+        setConversations(response.conversations || []);
       }
-      // Update conversations list
-      fetchConversations();
-    });
+    } catch (err) {
+      console.error('Failed to load conversations:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    chatService.on('user-typing', (data) => {
-      if (data.senderId === selectedConversation) {
-        setUsersTyping((prev) => ({
-          ...prev,
-          [data.senderId]: true,
-        }));
-      }
-    });
-
-    chatService.on('user-stopped-typing', (data) => {
-      setUsersTyping((prev) => ({
-        ...prev,
-        [data.senderId]: false,
-      }));
-    });
-
-    chatService.on('user-online', (data) => {
-      setOnlineUsers((prev) => new Set([...prev, data.userId]));
-    });
-
-    chatService.on('user-status-changed', (data) => {
-      if (data.isOnline) {
-        setOnlineUsers((prev) => new Set([...prev, data.userId]));
+  const loadConfirmedBookings = async () => {
+    try {
+      // Fetch bookings based on user role
+      let bookingsResponse;
+      
+      if (user?.role === 'admin') {
+        // Admin can see all bookings from admin endpoint
+        bookingsResponse = await axiosInstance.get('/admin/bookings?limit=100');
+      } else if (user?.role === 'seller') {
+        bookingsResponse = await axiosInstance.get('/bookings/seller/my-bookings');
       } else {
-        setOnlineUsers((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(data.userId);
-          return newSet;
+        bookingsResponse = await axiosInstance.get('/bookings/my-bookings');
+      }
+
+      if (bookingsResponse.data.success) {
+        const bookingsData = bookingsResponse.data.bookings || bookingsResponse.data.data || [];
+        // Filter for confirmed bookings without chat initiated
+        const confirmed = bookingsData.filter(
+          (b) => b.status === 'confirmed' && !b.chatInitiated
+        );
+        setConfirmedBookings(confirmed);
+      }
+    } catch (err) {
+      // Silently fail - this is optional
+      console.error('Failed to load bookings:', err);
+    }
+  };
+
+  const handleInitiateChat = async (bookingId, otherUserId, userName, propertyName) => {
+    try {
+      setInitChatLoading(bookingId);
+      setError('');
+      setSuccess('');
+
+      const response = await chatApi.sellerInitializeChat(
+        bookingId,
+        `Hi! Thank you for booking "${propertyName}". How can I help?`
+      );
+
+      if (response.success) {
+        setSuccess('Chat initiated successfully!');
+        setSelectedChat({
+          conversationId: otherUserId,
+          bookingId,
+          userName,
+          propertyName,
         });
-      }
-    });
 
-    return () => {
-      chatService.disconnect();
-    };
-  }, [user, selectedConversation, navigate]);
-
-  // Fetch conversations
-  const fetchConversations = async () => {
-    try {
-      const response = await axiosInstance.get('/chat/conversations');
-      if (response.data.success) {
-        setConversations(response.data.conversations);
+        // Refresh both lists
+        setTimeout(() => {
+          loadConversations();
+          loadConfirmedBookings();
+          setSuccess('');
+        }, 1500);
       }
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
+    } catch (err) {
+      setError(err.error || 'Failed to initialize chat');
     } finally {
-      setLoading(false);
+      setInitChatLoading(null);
     }
   };
-
-  // Fetch messages for selected conversation
-  const fetchMessages = async (recipientId) => {
-    try {
-      setLoading(true);
-      const response = await axiosInstance.get(`/chat/messages/${recipientId}`);
-      if (response.data.success) {
-        setMessages(response.data.messages);
-        // Mark as read
-        await axiosInstance.put(`/chat/mark-read/${recipientId}`);
-      }
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchConversations();
-  }, []);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
 
   const handleSelectConversation = (conversation) => {
-    setSelectedConversation(conversation.conversationId);
-    fetchMessages(conversation.conversationId);
+    setSelectedChat({
+      conversationId: conversation.conversationId,
+      userName: conversation.user.name,
+      avatar: conversation.user.avatar,
+    });
   };
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedConversation) return;
+  const filteredConversations = conversations.filter((conv) =>
+    conv.user.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-    try {
-      chatService.sendMessage(selectedConversation, newMessage);
+  const filteredBookings = confirmedBookings.filter(
+    (booking) =>
+      booking.property?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.buyer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.seller?.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-      // Also save via HTTP for persistence
-      await axiosInstance.post('/chat/send', {
-        receiverId: selectedConversation,
-        message: newMessage,
-        messageType: 'text',
-      });
-
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
-  };
-
-  const handleTyping = () => {
-    chatService.setTyping(selectedConversation);
-
-    clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      chatService.stopTyping(selectedConversation);
-    }, 2000);
-  };
-
-  if (!user) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="mb-4 text-gray-600">Please log in to access chat</p>
-          <button
-            onClick={() => navigate('/login')}
-            className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
-          >
-            Go to Login
-          </button>
-        </div>
-      </div>
-    );
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Conversations List */}
-      <div className="w-80 border-r border-gray-200 bg-white flex flex-col">
-        <div className="border-b border-gray-200 p-6 bg-gradient-to-r from-blue-600 to-blue-700">
-          <h1 className="text-2xl font-bold text-white">💬 Messages</h1>
-          <p className="text-sm text-blue-100 mt-1">Stay connected with property owners</p>
-        </div>
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100">
+      <div className="max-w-7xl mx-auto p-4 md:p-6">
+        {/* Header */}
+        <div className="mb-6">
+          <div className="bg-white rounded-lg shadow-md p-6 mb-4">
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">💬 Messages</h1>
+            <p className="text-gray-600">
+              {user?.name} • {user?.role === 'admin' ? '👨‍💼 Admin' : user?.role === 'seller' ? '🏪 Seller' : '👤 Buyer'}
+            </p>
+          </div>
 
-        <div className="flex-1 overflow-y-auto">
-          {loading && conversations.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-gray-500">Loading conversations...</p>
+          {/* Success/Error Messages */}
+          {error && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              {error}
             </div>
-          ) : conversations.length === 0 ? (
-            <div className="flex items-center justify-center h-full p-6">
-              <div className="text-center">
-                <p className="text-gray-600 mb-4">No conversations yet</p>
-                <button
-                  onClick={() => navigate('/rent')}
-                  className="text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  Book a property to start chatting
-                </button>
-              </div>
+          )}
+          {success && (
+            <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+              {success}
             </div>
-          ) : (
-            conversations.map((conversation) => {
-              const isSelected = selectedConversation === conversation.conversationId;
-              const isOnline = onlineUsers.has(conversation.conversationId);
-
-              return (
-                <div
-                  key={conversation.conversationId}
-                  onClick={() => handleSelectConversation(conversation)}
-                  className={`border-b border-gray-100 p-4 cursor-pointer transition-all ${
-                    isSelected
-                      ? 'bg-blue-50 border-l-4 border-blue-600'
-                      : 'hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-gray-900 truncate">
-                          {conversation.user.name}
-                        </h3>
-                        {isOnline && (
-                          <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 truncate">
-                        {conversation.lastMessage}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(conversation.lastMessageTime).toLocaleDateString()}
-                      </p>
-                    </div>
-                    {conversation.unreadCount > 0 && (
-                      <div className="ml-2 bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
-                        {conversation.unreadCount}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })
           )}
         </div>
-      </div>
 
-      {/* Chat Window */}
-      <div className="flex-1 flex flex-col bg-white">
-        {selectedConversation ? (
-          <>
-            {/* Chat Header */}
-            <div className="border-b border-gray-200 p-6 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-white bg-opacity-30 flex items-center justify-center text-xl">
-                    👤
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold">
-                      {conversations.find((c) => c.conversationId === selectedConversation)?.user.name}
-                    </h2>
-                    <p className="text-sm opacity-90">
-                      {onlineUsers.has(selectedConversation) ? '🟢 Online' : '⚪ Offline'}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedConversation(null)}
-                  className="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition"
-                >
-                  ✕
-                </button>
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Panel */}
+          <div className="lg:col-span-1 space-y-4">
+            {/* Tabs */}
+            <div className="flex gap-2 bg-white rounded-lg p-2 shadow">
+              <button
+                onClick={() => setActiveTab('conversations')}
+                className={`flex-1 px-4 py-2 rounded-lg font-semibold transition ${
+                  activeTab === 'conversations'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                Chats ({filteredConversations.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('bookings')}
+                className={`flex-1 px-4 py-2 rounded-lg font-semibold transition ${
+                  activeTab === 'bookings'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                Bookings ({filteredBookings.length})
+              </button>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {loading && messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-500">Loading messages...</p>
-                </div>
-              ) : (
-                <>
-                  {messages.map((msg, index) => (
-                    <div
-                      key={index}
-                      className={`flex ${msg.sender === user.id ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-xs px-4 py-2 rounded-lg ${
-                          msg.sender === user.id
-                            ? 'bg-blue-600 text-white rounded-br-none'
-                            : 'bg-gray-200 text-gray-900 rounded-bl-none'
+            {/* Search */}
+            <input
+              type="text"
+              placeholder={activeTab === 'conversations' ? 'Search chats...' : 'Search bookings...'}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+
+            {/* Content */}
+            <div className="bg-white rounded-lg shadow overflow-y-auto max-h-[600px]">
+              {isLoading && activeTab === 'conversations' ? (
+                <div className="p-6 text-center text-gray-500">Loading conversations...</div>
+              ) : activeTab === 'conversations' ? (
+                filteredConversations.length === 0 ? (
+                  <div className="p-6 text-center text-gray-500">
+                    No conversations yet. Start chatting!
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {filteredConversations.map((conv) => (
+                      <button
+                        key={conv.conversationId}
+                        onClick={() => handleSelectConversation(conv)}
+                        className={`w-full text-left p-4 hover:bg-blue-50 transition ${
+                          selectedChat?.conversationId === conv.conversationId
+                            ? 'bg-blue-100 border-l-4 border-blue-600'
+                            : ''
                         }`}
                       >
-                        <p className="text-sm break-words">{msg.message}</p>
-                        <p className={`text-xs mt-1 ${
-                          msg.sender === user.id ? 'text-blue-100' : 'text-gray-600'
-                        }`}>
-                          {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-
-                  {usersTyping[selectedConversation] && (
-                    <div className="flex justify-start">
-                      <div className="bg-gray-200 text-gray-900 px-4 py-2 rounded-lg">
-                        <div className="flex gap-1">
-                          <span className="w-2 h-2 bg-gray-600 rounded-full animate-bounce"></span>
-                          <span className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></span>
-                          <span className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></span>
+                        <div className="flex items-center gap-3">
+                          {conv.user.avatar ? (
+                            <img
+                              src={conv.user.avatar}
+                              alt={conv.user.name}
+                              className="w-10 h-10 rounded-full object-cover shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold shrink-0">
+                              {conv.user.name[0].toUpperCase()}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 truncate">
+                              {conv.user.name}
+                            </p>
+                            <p className="text-sm text-gray-600 truncate">
+                              {conv.lastMessage || 'No messages'}
+                            </p>
+                          </div>
+                          {conv.unreadCount > 0 && (
+                            <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                              {conv.unreadCount}
+                            </span>
+                          )}
                         </div>
-                      </div>
-                    </div>
-                  )}
-                  <div ref={messagesEndRef} />
-                </>
+                      </button>
+                    ))}
+                  </div>
+                )
+              ) : (
+                // Bookings Tab
+                filteredBookings.length === 0 ? (
+                  <div className="p-6 text-center text-gray-500">
+                    No confirmed bookings waiting for chat
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {filteredBookings.map((booking) => {
+                      const currentUserId = user?.id || user?._id;
+                      const otherUser =
+                        currentUserId === booking.buyer?._id ? booking.seller : booking.buyer;
+                      const propertyTitle = booking.property?.title || 'Property';
+
+                      return (
+                        <div key={booking._id} className="p-4 hover:bg-blue-50 transition">
+                          <div className="mb-2">
+                            <p className="font-semibold text-gray-900 text-sm">
+                              {propertyTitle}
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">
+                              {user?.role === 'seller'
+                                ? `Buyer: ${booking.buyer?.name || 'Unknown'}`
+                                : `Seller: ${booking.seller?.name || 'Unknown'}`}
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() =>
+                              handleInitiateChat(
+                                booking._id,
+                                otherUser?._id,
+                                otherUser?.name,
+                                propertyTitle
+                              )
+                            }
+                            disabled={initChatLoading === booking._id}
+                            className={`w-full px-3 py-2 rounded-lg font-semibold text-sm transition ${
+                              initChatLoading === booking._id
+                                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            }`}
+                          >
+                            {initChatLoading === booking._id
+                              ? '⏳ Starting...'
+                              : '💬 Start Chat'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
               )}
             </div>
-
-            {/* Message Input */}
-            <div className="border-t border-gray-200 p-4 bg-gray-50">
-              <form onSubmit={handleSendMessage} className="flex gap-3">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => {
-                    setNewMessage(e.target.value);
-                    handleTyping();
-                  }}
-                  placeholder="Type your message..."
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  type="submit"
-                  disabled={!newMessage.trim()}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition font-medium"
-                >
-                  Send
-                </button>
-              </form>
-            </div>
-          </>
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center text-gray-500">
-              <p className="text-2xl mb-4">👈 Select a conversation to start chatting</p>
-            </div>
           </div>
-        )}
+
+          {/* Right Panel - Chat */}
+          <div className="lg:col-span-2">
+            {selectedChat ? (
+              <PollingChatbox
+                recipientId={selectedChat.conversationId}
+                bookingId={selectedChat.bookingId}
+                propertyId={selectedChat.propertyId}
+                recipientName={selectedChat.userName}
+                isOpen={true}
+              />
+            ) : (
+              <div className="bg-white rounded-lg shadow h-96 md:h-full flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-6xl mb-4">💬</div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                    Select a Conversation
+                  </h3>
+                  <p className="text-gray-600">
+                    Choose a chat or start one from the confirmed bookings
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

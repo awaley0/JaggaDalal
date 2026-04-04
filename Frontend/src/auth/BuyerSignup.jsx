@@ -3,15 +3,16 @@ import { Link, useNavigate } from "react-router-dom";
 import { signupUser } from "../api/auth";
 import { useAuth } from "../context/AuthContext";
 
-const Signup = () => {
+const BuyerSignup = () => {
   const navigate = useNavigate();
   const { login, user } = useAuth();
 
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
+      // Buyers go to home, redirect sellers to seller signup
       if (user.role === "seller" || user.role === "admin") {
-        navigate("/admin");
+        navigate("/seller/signup");
       } else if (user.role === "buyer") {
         navigate("/");
       }
@@ -122,7 +123,7 @@ const Signup = () => {
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        role: formData.role,
+        role: "buyer",
         phone: formData.phone,
         bio: formData.bio,
         rememberMe: formData.rememberMe,
@@ -130,6 +131,12 @@ const Signup = () => {
 
       // Handle successful response
       if (response.data.success || response.data.token) {
+        // Verify it's a buyer account
+        if (response.data.user?.role !== "buyer") {
+          setApiError("Account registration failed. Please try again.");
+          return;
+        }
+
         // Use AuthContext login function
         login(response.data.user, response.data.token);
 
@@ -138,17 +145,8 @@ const Signup = () => {
           localStorage.setItem("rememberToken", response.data.rememberToken);
         }
 
-        // Role-based redirect
-        let redirectPath = "/";
-        if (response.data.user?.role === "seller") {
-          redirectPath = "/admin";  // Sellers are treated as admins
-        } else if (response.data.user?.role === "admin") {
-          redirectPath = "/admin";
-        }
-        // Buyers default to homepage ("/")
-
         setTimeout(() => {
-          navigate(redirectPath);
+          navigate("/");
         }, 300);
       }
     } catch (error) {
@@ -185,8 +183,8 @@ const Signup = () => {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               JaggaDalal
             </h1>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Create Account</h2>
-            <p className="text-gray-600 text-sm">Join our community of buyers and sellers</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Buyer Registration</h2>
+            <p className="text-gray-600 text-sm">Find your perfect property today</p>
           </div>
 
           {/* Progress Steps */}
@@ -257,29 +255,6 @@ const Signup = () => {
                   {errors.email && (
                     <p className="text-red-600 text-sm mt-1">{errors.email}</p>
                   )}
-                </div>
-
-                {/* Role Selection */}
-                <div>
-                  <label className="block text-gray-900 text-sm font-medium mb-2">
-                    I want to
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {["buyer", "seller"].map((role) => (
-                      <button
-                        key={role}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, role })}
-                        className={`py-2.5 px-4 rounded-lg font-medium capitalize transition-all ${
-                          formData.role === role
-                            ? "bg-blue-600 text-white border border-blue-700"
-                            : "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200"
-                        }`}
-                      >
-                        {role}
-                      </button>
-                    ))}
-                  </div>
                 </div>
 
                 {/* Next Button */}
@@ -422,10 +397,21 @@ const Signup = () => {
           <p className="text-center mt-6 text-gray-700">
             Already have an account?{" "}
             <Link
-              to="/login"
+              to="/buyer/login"
               className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
             >
               Sign in
+            </Link>
+          </p>
+
+          {/* Switch to Seller */}
+          <p className="text-center mt-4 text-gray-600 text-sm">
+            Are you a seller?{" "}
+            <Link
+              to="/seller/signup"
+              className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+            >
+              Sign up as seller
             </Link>
           </p>
         </div>
@@ -434,4 +420,4 @@ const Signup = () => {
   );
 };
 
-export default Signup;
+export default BuyerSignup;

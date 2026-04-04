@@ -2,6 +2,25 @@ import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { XMarkIcon, MinusIcon } from '@heroicons/react/24/outline';
 
+const getSocketBaseUrl = () => {
+  const apiBase = import.meta.env.VITE_API_BASE_URL;
+  if (apiBase) {
+    return apiBase.replace(/\/api\/?$/, '');
+  }
+  return import.meta.env.VITE_API_URL || 'http://localhost:5000';
+};
+
+const getStoredUserId = () => {
+  try {
+    const raw = localStorage.getItem('user');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.id || parsed?._id || null;
+  } catch {
+    return null;
+  }
+};
+
 export default function Chatbox({ recipientId, propertyId = null, recipientName = 'Agent', isOpen = true }) {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
@@ -11,11 +30,11 @@ export default function Chatbox({ recipientId, propertyId = null, recipientName 
   const socketRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const userId = localStorage.getItem('userId');
+  const userId = getStoredUserId();
 
   useEffect(() => {
     // Initialize Socket.IO
-    socketRef.current = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+    socketRef.current = io(getSocketBaseUrl(), {
       auth: { token: localStorage.getItem('token') },
       reconnection: true,
     });
@@ -74,7 +93,7 @@ export default function Chatbox({ recipientId, propertyId = null, recipientName 
     return (
       <div
         onClick={() => setIsMinimized(false)}
-        className="fixed bottom-4 right-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition z-40"
+        className="fixed bottom-4 right-4 bg-linear-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition z-40"
       >
         <p className="font-semibold">💬 {recipientName}</p>
       </div>
@@ -84,7 +103,7 @@ export default function Chatbox({ recipientId, propertyId = null, recipientName 
   return (
     <div className="fixed bottom-4 right-4 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col z-50 max-h-[600px]">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-4 flex items-center justify-between">
+      <div className="bg-linear-to-r from-blue-600 to-blue-700 text-white px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="w-10 h-10 rounded-full bg-white bg-opacity-30 flex items-center justify-center">
@@ -135,7 +154,7 @@ export default function Chatbox({ recipientId, propertyId = null, recipientName 
                     : 'bg-gray-300 text-gray-800 rounded-bl-none'
                 }`}
               >
-                <p className="break-words">{msg.message}</p>
+                <p className="wrap-break-word">{msg.message}</p>
                 <p className={`text-xs mt-1 ${msg.sender === userId ? 'text-blue-100' : 'text-gray-600'}`}>
                   {new Date(msg.timestamp).toLocaleTimeString([], {
                     hour: '2-digit',
@@ -175,7 +194,7 @@ export default function Chatbox({ recipientId, propertyId = null, recipientName 
         <button
           type="submit"
           disabled={!message.trim()}
-          className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition font-bold text-white"
+          className="shrink-0 w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition font-bold text-white"
         >
           ↑
         </button>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "../api/axios";
 import SellerRoute from "../components/SellerRoute";
+import PropertyFormModal from "../components/PropertyFormModal";
 
 const SellerDashboard = () => {
   const navigate = useNavigate();
@@ -12,17 +13,6 @@ const SellerDashboard = () => {
   const [error, setError] = useState("");
   const [showAddProperty, setShowAddProperty] = useState(false);
   const [editingProperty, setEditingProperty] = useState(null);
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    price: "",
-    location: "",
-    category: "residential",
-    bedrooms: "",
-    bathrooms: "",
-    squareFeet: "",
-    amenities: [],
-  });
 
   // Fetch seller's properties
   useEffect(() => {
@@ -47,34 +37,8 @@ const SellerDashboard = () => {
     }
   };
 
-  const handleAddProperty = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await axios.post(
-        "/properties",
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      setProperties([...properties, response.data.data]);
-      setFormData({
-        title: "",
-        description: "",
-        price: "",
-        location: "",
-        category: "residential",
-        bedrooms: "",
-        bathrooms: "",
-        squareFeet: "",
-        amenities: [],
-      });
-      setShowAddProperty(false);
-    } catch (err) {
-      setError(err.response?.data?.error || "Failed to add property");
-    }
+  const handlePropertyAdded = (newProperty) => {
+    setProperties([...properties, newProperty]);
   };
 
   const handleDeleteProperty = async (propertyId) => {
@@ -92,13 +56,7 @@ const SellerDashboard = () => {
     }
   };
 
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+
 
   return (
     <SellerRoute>
@@ -123,160 +81,20 @@ const SellerDashboard = () => {
             </div>
           )}
 
-          {/* Add Property Button */}
           <div className="mb-8 flex justify-end">
             <button
-              onClick={() => setShowAddProperty(!showAddProperty)}
+              onClick={() => setShowAddProperty(true)}
               className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
             >
-              {showAddProperty ? "Cancel" : "➕ Add New Property"}
+              ➕ Add New Property
             </button>
           </div>
 
-          {/* Add Property Form */}
-          {showAddProperty && (
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Add New Property</h2>
-              <form onSubmit={handleAddProperty} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Title */}
-                <div className="md:col-span-2">
-                  <label className="block text-gray-900 text-sm font-medium mb-2">
-                    Property Title
-                  </label>
-                  <input
-                    type="text"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleFormChange}
-                    required
-                    placeholder="e.g., Luxury Apartment in Downtown"
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Description */}
-                <div className="md:col-span-2">
-                  <label className="block text-gray-900 text-sm font-medium mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleFormChange}
-                    required
-                    rows="4"
-                    placeholder="Describe your property..."
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Price */}
-                <div>
-                  <label className="block text-gray-900 text-sm font-medium mb-2">
-                    Price
-                  </label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={formData.price}
-                    onChange={handleFormChange}
-                    required
-                    placeholder="0"
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Location */}
-                <div>
-                  <label className="block text-gray-900 text-sm font-medium mb-2">
-                    Location
-                  </label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleFormChange}
-                    required
-                    placeholder="City, State"
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Category */}
-                <div>
-                  <label className="block text-gray-900 text-sm font-medium mb-2">
-                    Category
-                  </label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleFormChange}
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="residential">Residential</option>
-                    <option value="commercial">Commercial</option>
-                    <option value="land">Land</option>
-                    <option value="rental">Rental</option>
-                  </select>
-                </div>
-
-                {/* Bedrooms */}
-                <div>
-                  <label className="block text-gray-900 text-sm font-medium mb-2">
-                    Bedrooms
-                  </label>
-                  <input
-                    type="number"
-                    name="bedrooms"
-                    value={formData.bedrooms}
-                    onChange={handleFormChange}
-                    placeholder="0"
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Bathrooms */}
-                <div>
-                  <label className="block text-gray-900 text-sm font-medium mb-2">
-                    Bathrooms
-                  </label>
-                  <input
-                    type="number"
-                    name="bathrooms"
-                    value={formData.bathrooms}
-                    onChange={handleFormChange}
-                    placeholder="0"
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Square Feet */}
-                <div>
-                  <label className="block text-gray-900 text-sm font-medium mb-2">
-                    Square Feet
-                  </label>
-                  <input
-                    type="number"
-                    name="squareFeet"
-                    value={formData.squareFeet}
-                    onChange={handleFormChange}
-                    placeholder="0"
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Submit Button */}
-                <div className="md:col-span-2">
-                  <button
-                    type="submit"
-                    className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Add Property
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
+          <PropertyFormModal 
+            isOpen={showAddProperty}
+            onClose={() => setShowAddProperty(false)}
+            onPropertyAdded={handlePropertyAdded}
+          />
 
           {/* Properties List */}
           {loading ? (

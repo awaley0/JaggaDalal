@@ -4,8 +4,8 @@ import { useAuth } from "../context/AuthContext";
 /**
  * SellerRoute Component
  * Ensures only authenticated users with seller role can access seller routes
- * Redirects to login if not authenticated
- * Redirects to home if authenticated but not seller
+ * Redirects to seller login if not authenticated
+ * Redirects to appropriate page if authenticated but not seller
  */
 const SellerRoute = ({ children }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -18,9 +18,9 @@ const SellerRoute = ({ children }) => {
     );
   }
 
-  // Not authenticated - redirect to login
+  // Not authenticated - redirect to seller login
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/seller/login" replace />;
   }
 
   // Authenticated but not seller - redirect appropriately

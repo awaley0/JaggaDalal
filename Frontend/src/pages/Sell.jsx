@@ -1,39 +1,33 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import PropertyFormModal from "../components/PropertyFormModal";
 
 const Sell = () => {
-  const [formData, setFormData] = useState({
-    propertyType: "",
-    title: "",
-    location: "",
-    price: "",
-    bedrooms: "",
-    bathrooms: "",
-    area: "",
-    description: "",
-  });
+  const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
+  
+  const [showAddProperty, setShowAddProperty] = useState(false);
+  const [error, setError] = useState("");
 
-  const [submitStatus, setSubmitStatus] = useState(null);
+  const handleOpenModal = () => {
+    if (!isAuthenticated || !user) {
+      setError("Please log in as a seller to list a property");
+      setTimeout(() => navigate("/login"), 2000);
+      return;
+    }
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (user.role !== "seller" && user.role !== "admin") {
+      setError("Only sellers can list properties. Please sign up as a seller.");
+      return;
+    }
+
+    setShowAddProperty(true);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Simulate form submission
-    setSubmitStatus("success");
-    setTimeout(() => setSubmitStatus(null), 5000);
-    setFormData({
-      propertyType: "",
-      title: "",
-      location: "",
-      price: "",
-      bedrooms: "",
-      bathrooms: "",
-      area: "",
-      description: "",
-    });
+  const handlePropertyAdded = (newProperty) => {
+    setShowAddProperty(false);
+    navigate("/seller/properties");
   };
 
   return (
@@ -54,10 +48,23 @@ const Sell = () => {
               Reach thousands of serious buyers. Our platform helps you sell your property quickly
               with maximum exposure and fair pricing.
             </p>
+
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 text-red-800 border border-red-200 rounded-lg max-w-md mx-auto">
+                <p className="font-medium">✗ {error}</p>
+              </div>
+            )}
+
+            <button 
+              onClick={handleOpenModal}
+              className="px-8 py-4 bg-amber-500 text-white font-bold rounded-xl text-lg hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/30"
+            >
+              List a Property
+            </button>
           </div>
 
           {/* Benefits */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 py-8 mt-8 max-w-3xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 py-8 mt-12 max-w-3xl mx-auto">
             <div className="text-center">
               <div className="inline-block p-3 bg-amber-500/20 rounded-full mb-3">
                 <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -89,252 +96,11 @@ const Sell = () => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-          {/* Form */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Property Details</h2>
-
-              {submitStatus === "success" && (
-                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-                  <p className="text-emerald-800 font-medium">
-                    ✓ Property listed successfully! Buyers will start seeing your listing soon.
-                  </p>
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Property Type */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Property Type <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="propertyType"
-                    value={formData.propertyType}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all"
-                  >
-                    <option value="">Select property type</option>
-                    <option value="apartment">Apartment</option>
-                    <option value="house">House</option>
-                    <option value="studio">Studio</option>
-                    <option value="penthouse">Penthouse</option>
-                    <option value="villa">Villa</option>
-                  </select>
-                </div>
-
-                {/* Title */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Property Title <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleChange}
-                    placeholder="e.g., Modern 3-Bedroom Apartment in Downtown"
-                    required
-                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all"
-                  />
-                </div>
-
-                {/* Location */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Location <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleChange}
-                    placeholder="e.g., 123 Main Street, New York"
-                    required
-                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all"
-                  />
-                </div>
-
-                {/* Price */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Asking Price <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-2.5 text-slate-600 font-semibold">$</span>
-                    <input
-                      type="number"
-                      name="price"
-                      value={formData.price}
-                      onChange={handleChange}
-                      placeholder="500000"
-                      required
-                      className="w-full pl-8 pr-4 py-2.5 border border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all"
-                    />
-                  </div>
-                </div>
-
-                {/* Property Details Grid */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      Bedrooms <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      name="bedrooms"
-                      value={formData.bedrooms}
-                      onChange={handleChange}
-                      placeholder="3"
-                      required
-                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      Bathrooms <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      name="bathrooms"
-                      value={formData.bathrooms}
-                      onChange={handleChange}
-                      placeholder="2"
-                      required
-                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      Area (Sqft) <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      name="area"
-                      value={formData.area}
-                      onChange={handleChange}
-                      placeholder="2500"
-                      required
-                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all"
-                    />
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Property Description <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                    placeholder="Describe your property in detail. Include features, amenities, renovations, etc."
-                    required
-                    rows="5"
-                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all resize-none"
-                  ></textarea>
-                </div>
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-gradient-to-r from-slate-900 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-700 transition-all duration-200 shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                  List Property Now
-                </button>
-              </form>
-            </div>
-          </div>
-
-          {/* Sidebar Tips */}
-          <div>
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm sticky top-20">
-              <h3 className="text-lg font-bold text-slate-900 mb-6">Tips for Success</h3>
-
-              <div className="space-y-6">
-                <div>
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0">
-                      <div className="flex items-center justify-center h-8 w-8 rounded-md bg-amber-100">
-                        <span className="text-amber-600 font-bold text-sm">1</span>
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900">Professional Photos</h4>
-                      <p className="text-sm text-slate-600 mt-1">
-                        Quality images increase interest by 75%
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0">
-                      <div className="flex items-center justify-center h-8 w-8 rounded-md bg-amber-100">
-                        <span className="text-amber-600 font-bold text-sm">2</span>
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900">Accurate Details</h4>
-                      <p className="text-sm text-slate-600 mt-1">
-                        Include all amenities and special features
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0">
-                      <div className="flex items-center justify-center h-8 w-8 rounded-md bg-amber-100">
-                        <span className="text-amber-600 font-bold text-sm">3</span>
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900">Competitive Pricing</h4>
-                      <p className="text-sm text-slate-600 mt-1">
-                        Research similar properties in your area
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0">
-                      <div className="flex items-center justify-center h-8 w-8 rounded-md bg-amber-100">
-                        <span className="text-amber-600 font-bold text-sm">4</span>
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900">Quick Response</h4>
-                      <p className="text-sm text-slate-600 mt-1">
-                        Reply to inquiries promptly
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 pt-6 border-t border-slate-200">
-                <h4 className="font-semibold text-slate-900 mb-3">Need Help Pricing?</h4>
-                <button className="w-full px-4 py-2 border border-amber-500 text-amber-600 font-semibold rounded-lg hover:bg-amber-50 transition-colors">
-                  Get Price Estimate
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PropertyFormModal 
+        isOpen={showAddProperty}
+        onClose={() => setShowAddProperty(false)}
+        onPropertyAdded={handlePropertyAdded}
+      />
     </div>
   );
 };

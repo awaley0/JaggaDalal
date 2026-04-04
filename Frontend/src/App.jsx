@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
+import SellerRoute from "./components/SellerRoute";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Buy from "./pages/Buy";
@@ -13,14 +14,22 @@ import Profile from "./pages/Profile";
 import Favorites from "./pages/Favorites";
 import Chat from "./pages/Chat";
 import AdminDashboard from "./admin/AdminDashboard";
+import ManageProperties from "./admin/ManageProperties";
+import ManageUsers from "./admin/ManageUsers";
+import ManageBookings from "./admin/ManageBookings";
 import SellerDashboard from "./pages/SellerDashboard";
 import BuyerDashboard from "./pages/BuyerDashboard";
 import PropertyDetails from "./pages/PropertyDetails";
 import Login from "./auth/Login";
 import Signup from "./auth/Signup";
+import BuyerLogin from "./auth/BuyerLogin";
+import BuyerSignup from "./auth/BuyerSignup";
+import SellerLogin from "./auth/SellerLogin";
+import SellerSignup from "./auth/SellerSignup";
 import AdminLogin from "./auth/AdminLogin";
 import ForgotPassword from "./auth/ForgotPassword";
 import ResetPassword from "./auth/ResetPassword";
+import PaymentVerify from "./pages/PaymentVerify";
 
 // OAuth Callback Handler Component
 function OAuthCallbackHandler() {
@@ -59,11 +68,24 @@ function AppRoutes() {
         <Route path="/rent" element={<Rent />} />
         <Route path="/sell" element={<Sell />} />
         <Route path="/property/:id" element={<PropertyDetails />} />
+        <Route path="/payment/verify" element={<PaymentVerify />} />
 
-        {/* Auth Routes */}
-        <Route path="/login" element={<Login />} />
+        {/* Legacy Auth Routes - Redirect to buyer routes */}
+        <Route path="/login" element={<BuyerLogin />} />
+        <Route path="/signup" element={<BuyerSignup />} />
+        
+        {/* Buyer Auth Routes */}
+        <Route path="/buyer/login" element={<BuyerLogin />} />
+        <Route path="/buyer/signup" element={<BuyerSignup />} />
+        
+        {/* Seller Auth Routes */}
+        <Route path="/seller/login" element={<SellerLogin />} />
+        <Route path="/seller/signup" element={<SellerSignup />} />
+        
+        {/* Admin Auth Route */}
         <Route path="/admin-login" element={<AdminLogin />} />
-        <Route path="/signup" element={<Signup />} />
+        
+        {/* Password Routes */}
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
@@ -106,7 +128,7 @@ function AppRoutes() {
           path="/admin/properties"
           element={
             <AdminRoute>
-              <AdminDashboard />
+              <ManageProperties />
             </AdminRoute>
           }
         />
@@ -114,7 +136,15 @@ function AppRoutes() {
           path="/admin/users"
           element={
             <AdminRoute>
-              <AdminDashboard />
+              <ManageUsers />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/bookings"
+          element={
+            <AdminRoute>
+              <ManageBookings />
             </AdminRoute>
           }
         />
@@ -123,9 +153,9 @@ function AppRoutes() {
         <Route
           path="/seller/properties"
           element={
-            <ProtectedRoute>
+            <SellerRoute>
               <SellerDashboard />
-            </ProtectedRoute>
+            </SellerRoute>
           }
         />
 

@@ -4,8 +4,8 @@ import { useAuth } from "../context/AuthContext";
 /**
  * BuyerRoute Component
  * Ensures only authenticated users with buyer role can access buyer routes
- * Redirects to login if not authenticated
- * Redirects to home if authenticated but not buyer
+ * Redirects to buyer login if not authenticated
+ * Redirects to appropriate page if authenticated but not buyer
  */
 const BuyerRoute = ({ children }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -18,9 +18,9 @@ const BuyerRoute = ({ children }) => {
     );
   }
 
-  // Not authenticated - redirect to login
+  // Not authenticated - redirect to buyer login
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/buyer/login" replace />;
   }
 
   // Authenticated but not buyer - redirect appropriately

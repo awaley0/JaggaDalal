@@ -113,11 +113,11 @@ const AdminLogin = () => {
       } else if (error.response?.data?.message) {
         errorMsg = error.response.data.message;
       } else if (error.message === "Network Error" || !error.response) {
-        errorMsg = "❌ Network error. Please check your connection.";
+        errorMsg = "Network error. Please check your connection.";
       } else if (error.response?.status === 401) {
-        errorMsg = "❌ Invalid email or password.";
+        errorMsg = "Invalid email or password.";
       } else if (error.response?.status === 403) {
-        errorMsg = "❌ Access Denied! You don't have admin privileges.";
+        errorMsg = "Access Denied! You don't have admin privileges.";
       }
 
       setApiError(errorMsg);

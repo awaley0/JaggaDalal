@@ -15,3 +15,6 @@ export const logout = () => {
   localStorage.removeItem("user");
   localStorage.removeItem("rememberToken");
 };
+
+// Search History
+export const saveUserSearch = (searchData) => axiosInstance.post("/auth/searches", searchData);

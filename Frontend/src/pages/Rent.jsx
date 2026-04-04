@@ -1,27 +1,74 @@
-import { useState } from "react";
-import properties from "../data/properties";
+import { useState, useEffect } from "react";
 import PropertyCard from "../components/PropertyCard";
 import SearchBar from "../components/SearchBar";
+import { getAllProperties } from "../api/propertyApi";
+import * as fallbackModule from "../data/properties";
 
 const Rent = () => {
+  const [allProperties, setAllProperties] = useState([]);
+  const [filteredProperties, setFilteredProperties] = useState([]);
   const [searchFilters, setSearchFilters] = useState({ location: "", type: "" });
   const [priceRange, setPriceRange] = useState([0, 5000]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Filter properties for rent only
-  const rentalProperties = properties.filter(
-    (p) =>
-      p.type === "rent" &&
-      (searchFilters.location === "" ||
-        p.location.toLowerCase().includes(searchFilters.location.toLowerCase())) &&
-      (searchFilters.type === "" || p.type === searchFilters.type)
-  );
+  // Fetch properties from API
+  useEffect(() => {
+    fetchProperties();
+  }, []);
 
-  const filteredProperties = rentalProperties.filter(
-    (p) => {
-      const price = parseFloat(p.pricePerMonth || p.price);
-      return price >= priceRange[0] && price <= priceRange[1];
+  // Re-filter when search filters or price range changes
+  useEffect(() => {
+    applyFilters();
+  }, [searchFilters, priceRange, allProperties]);
+
+  const fetchProperties = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await getAllProperties({ 
+        limit: 100 
+      });
+      if (response.success && response.data) {
+        setAllProperties(response.data);
+      } else {
+        // Use fallback data
+        const rentProperties = (fallbackModule.default || []).filter(p => p.listingType === "rent" || p.listingType === "buy" || p.type === "rent" || p.type === "buy");
+        setAllProperties(rentProperties);
+      }
+    } catch (err) {
+      console.error("Error fetching properties:", err);
+      const rentProperties = (fallbackModule.default || []).filter(p => p.listingType === "rent" || p.listingType === "buy" || p.type === "rent" || p.type === "buy");
+      setAllProperties(rentProperties);
+      setError("Showing cached properties. Unable to fetch latest listings.");
+    } finally {
+      setLoading(false);
     }
-  );
+  };
+
+  const applyFilters = () => {
+    let result = allProperties;
+
+    // Filter by location
+    if (searchFilters.location) {
+      result = result.filter(p =>
+        p.location?.toLowerCase().includes(searchFilters.location.toLowerCase())
+      );
+    }
+
+    // Filter by property type
+    if (searchFilters.type && searchFilters.type !== "") {
+      result = result.filter(p => p.propertyType === searchFilters.type || p.type === searchFilters.type);
+    }
+
+    // Filter by price range
+    result = result.filter(p => {
+      const price = parseFloat(p.pricePerMonth || p.price || 0);
+      return price >= priceRange[0] && price <= priceRange[1];
+    });
+
+    setFilteredProperties(result);
+  };
 
   const handleSearch = (filters) => {
     setSearchFilters(filters);
@@ -39,11 +86,11 @@ const Rent = () => {
           <div className="text-center mb-12">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-4">
               Find Your Perfect{" "}
-              <span className="text-amber-500">Rental Home</span>
+              <span className="text-amber-500">Home to Rent or Buy</span>
             </h1>
             <p className="text-lg text-slate-200 mb-8 max-w-2xl mx-auto leading-relaxed">
-              Explore thousands of rental properties in prime locations. Find your ideal home
-              with flexible lease terms and competitive prices.
+              Explore thousands of properties in prime locations. Find your ideal home
+              whether you are looking to rent or purchase.
             </p>
 
             <div className="max-w-2xl mx-auto">
@@ -156,49 +203,66 @@ const Rent = () => {
 
             {/* Properties Grid */}
             <div className="flex-1">
-              <div className="mb-6">
-                <p className="text-slate-600 font-medium">
-                  Showing <span className="text-slate-900 font-bold">{filteredProperties.length}</span> rental properties
-                </p>
-              </div>
+              {error && (
+                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
+                  {error}
+                </div>
+              )}
 
-              {filteredProperties.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {filteredProperties.map((property) => (
-                    <PropertyCard key={property.id} property={property} />
-                  ))}
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
                 </div>
               ) : (
-                <div className="text-center py-16">
-                  <svg
-                    className="w-16 h-16 text-slate-300 mx-auto mb-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                    />
-                  </svg>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                    No rental properties found
-                  </h3>
-                  <p className="text-slate-600 mb-6">
-                    Try adjusting your filters to see more options
-                  </p>
-                  <button
-                    onClick={() => {
-                      setSearchFilters({ location: "", type: "" });
-                      setPriceRange([0, 5000]);
-                    }}
-                    className="px-6 py-2 bg-gradient-to-r from-slate-900 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-700 transition-all"
-                  >
-                    Reset Filters
-                  </button>
-                </div>
+                <>
+                  <div className="mb-6">
+                    <p className="text-slate-600 font-medium">
+                      Showing <span className="text-slate-900 font-bold">{filteredProperties.length}</span> properties
+                    </p>
+                  </div>
+
+                  {filteredProperties.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {filteredProperties.map((property) => (
+                        <PropertyCard 
+                          key={property._id || property.id} 
+                          property={property} 
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-16">
+                      <svg
+                        className="w-16 h-16 text-slate-300 mx-auto mb-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                        />
+                      </svg>
+                      <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                        No properties found
+                      </h3>
+                      <p className="text-slate-600 mb-6">
+                        Try adjusting your filters to see more options
+                      </p>
+                      <button
+                        onClick={() => {
+                          setSearchFilters({ location: "", type: "" });
+                          setPriceRange([0, 5000]);
+                        }}
+                        className="px-6 py-2 bg-gradient-to-r from-slate-900 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-700 transition-all"
+                      >
+                        Reset Filters
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -210,10 +274,10 @@ const Rent = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">Renting Guide</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">Renting & Buying Guide</h3>
               <p className="text-slate-600 text-sm leading-relaxed">
-                Learn essential tips for finding and renting the perfect property. Understand lease terms,
-                tenant rights, and what to look for in a rental.
+                Learn essential tips for finding the perfect property. Understand lease terms,
+                tenant rights, and purchasing procedures.
               </p>
             </div>
             <div>

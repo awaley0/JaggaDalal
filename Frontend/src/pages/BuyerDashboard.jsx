@@ -32,12 +32,12 @@ const BuyerDashboard = () => {
       setBookings(bookingsResponse.data.data || []);
 
       // Fetch favorites
-      const favoritesResponse = await axios.get("/favorites", {
+      const favoritesResponse = await axios.get("/favourites", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
-      setFavorites(favoritesResponse.data.data || []);
+      setFavorites(Array.isArray(favoritesResponse.data) ? favoritesResponse.data : (favoritesResponse.data.data || []));
     } catch (err) {
       setError(err.response?.data?.error || "Failed to fetch data");
       console.error("Error fetching buyer data:", err);
@@ -234,7 +234,7 @@ const BuyerDashboard = () => {
                       key={property._id}
                       className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
                     >
-                      <div className="h-48 bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center relative">
+                      <div className="h-48 bg-linear-to-br from-blue-400 to-blue-600 flex items-center justify-center relative">
                         <svg className="w-16 h-16 text-white opacity-50" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
                         </svg>

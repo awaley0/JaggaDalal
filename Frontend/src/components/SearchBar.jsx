@@ -3,13 +3,21 @@ import { useState } from "react";
 const SearchBar = ({ onSearch }) => {
   const [location, setLocation] = useState("");
   const [type, setType] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSearching(true);
+    
+    // Simulate a slight delay for smooth feedback
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
     onSearch({
       location,
       type,
     });
+    
+    setIsSearching(false);
   };
 
   const handleReset = () => {
@@ -94,31 +102,53 @@ const SearchBar = ({ onSearch }) => {
         <div className="flex gap-2 items-end">
           <button
             type="submit"
-            className="flex-1 py-2.5 bg-gradient-to-r from-slate-900 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-700 transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-slate-900/20"
+            disabled={isSearching}
+            className="flex-1 py-2.5 bg-gradient-to-r from-slate-900 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-700 transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-slate-900/20 disabled:opacity-75 disabled:cursor-not-allowed hover:scale-105 active:scale-95 search-btn"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            <span className="hidden sm:inline">Search</span>
+            {isSearching ? (
+              <>
+                <svg
+                  className="w-5 h-5 animate-spin"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                <span className="hidden sm:inline">Searching...</span>
+              </>
+            ) : (
+              <>
+                <svg
+                  className="w-5 h-5 transition-transform duration-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                <span className="hidden sm:inline">Search</span>
+              </>
+            )}
           </button>
           <button
             type="button"
             onClick={handleReset}
-            className="px-4 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors duration-200"
+            className="px-4 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-all duration-200 hover:scale-105 active:scale-95 hover:border-slate-400"
             title="Reset filters"
           >
             <svg
-              className="w-5 h-5"
+              className="w-5 h-5 transition-transform duration-300 hover:rotate-180"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

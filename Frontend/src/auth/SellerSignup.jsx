@@ -3,17 +3,18 @@ import { Link, useNavigate } from "react-router-dom";
 import { signupUser } from "../api/auth";
 import { useAuth } from "../context/AuthContext";
 
-const Signup = () => {
+const SellerSignup = () => {
   const navigate = useNavigate();
   const { login, user } = useAuth();
 
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
+      // Sellers/admins go to admin, redirect buyers to buyer signup
       if (user.role === "seller" || user.role === "admin") {
         navigate("/admin");
       } else if (user.role === "buyer") {
-        navigate("/");
+        navigate("/buyer/signup");
       }
     }
   }, [user, navigate]);
@@ -24,7 +25,7 @@ const Signup = () => {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "buyer",
+    role: "seller",
     phone: "",
     bio: "",
     rememberMe: false,
@@ -122,7 +123,7 @@ const Signup = () => {
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        role: formData.role,
+        role: "seller",
         phone: formData.phone,
         bio: formData.bio,
         rememberMe: formData.rememberMe,
@@ -130,6 +131,12 @@ const Signup = () => {
 
       // Handle successful response
       if (response.data.success || response.data.token) {
+        // Verify it's a seller account
+        if (response.data.user?.role !== "seller") {
+          setApiError("Account registration failed. Please try again.");
+          return;
+        }
+
         // Use AuthContext login function
         login(response.data.user, response.data.token);
 
@@ -138,17 +145,8 @@ const Signup = () => {
           localStorage.setItem("rememberToken", response.data.rememberToken);
         }
 
-        // Role-based redirect
-        let redirectPath = "/";
-        if (response.data.user?.role === "seller") {
-          redirectPath = "/admin";  // Sellers are treated as admins
-        } else if (response.data.user?.role === "admin") {
-          redirectPath = "/admin";
-        }
-        // Buyers default to homepage ("/")
-
         setTimeout(() => {
-          navigate(redirectPath);
+          navigate("/admin");
         }, 300);
       }
     } catch (error) {
@@ -185,20 +183,20 @@ const Signup = () => {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               JaggaDalal
             </h1>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Create Account</h2>
-            <p className="text-gray-600 text-sm">Join our community of buyers and sellers</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Seller Registration</h2>
+            <p className="text-gray-600 text-sm">List your properties and reach buyers</p>
           </div>
 
           {/* Progress Steps */}
           <div className="flex items-center space-x-2 mb-8">
             <div
               className={`flex-1 h-2 rounded-full transition-all ${
-                currentStep >= 1 ? "bg-blue-600" : "bg-gray-300"
+                currentStep >= 1 ? "bg-green-600" : "bg-gray-300"
               }`}
             ></div>
             <div
               className={`flex-1 h-2 rounded-full transition-all ${
-                currentStep >= 2 ? "bg-blue-600" : "bg-gray-300"
+                currentStep >= 2 ? "bg-green-600" : "bg-gray-300"
               }`}
             ></div>
           </div>
@@ -229,7 +227,7 @@ const Signup = () => {
                     className={`w-full px-4 py-2.5 rounded-lg border ${
                       errors.name
                         ? "border-red-300 focus:border-red-500 focus:ring-red-200"
-                        : "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
+                        : "border-gray-300 focus:border-green-500 focus:ring-green-200"
                     } text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-200`}
                   />
                   {errors.name && (
@@ -251,7 +249,7 @@ const Signup = () => {
                     className={`w-full px-4 py-2.5 rounded-lg border ${
                       errors.email
                         ? "border-red-300 focus:border-red-500 focus:ring-red-200"
-                        : "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
+                        : "border-gray-300 focus:border-green-500 focus:ring-green-200"
                     } text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-200`}
                   />
                   {errors.email && (
@@ -259,33 +257,10 @@ const Signup = () => {
                   )}
                 </div>
 
-                {/* Role Selection */}
-                <div>
-                  <label className="block text-gray-900 text-sm font-medium mb-2">
-                    I want to
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {["buyer", "seller"].map((role) => (
-                      <button
-                        key={role}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, role })}
-                        className={`py-2.5 px-4 rounded-lg font-medium capitalize transition-all ${
-                          formData.role === role
-                            ? "bg-blue-600 text-white border border-blue-700"
-                            : "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200"
-                        }`}
-                      >
-                        {role}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 {/* Next Button */}
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+                  className="w-full py-2.5 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200"
                 >
                   Continue
                 </button>
@@ -310,7 +285,7 @@ const Signup = () => {
                       className={`w-full px-4 py-2.5 rounded-lg border ${
                         errors.password
                           ? "border-red-300 focus:border-red-500 focus:ring-red-200"
-                          : "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
+                          : "border-gray-300 focus:border-green-500 focus:ring-green-200"
                       } text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-200`}
                     />
                     <button
@@ -350,7 +325,7 @@ const Signup = () => {
                       className={`w-full px-4 py-2.5 rounded-lg border ${
                         errors.confirmPassword
                           ? "border-red-300 focus:border-red-500 focus:ring-red-200"
-                          : "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
+                          : "border-gray-300 focus:border-green-500 focus:ring-green-200"
                       } text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-200`}
                     />
                     <button
@@ -382,7 +357,7 @@ const Signup = () => {
                     name="rememberMe"
                     checked={formData.rememberMe}
                     onChange={handleChange}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
                   />
                   <span className="text-gray-700 text-sm">Remember me on this device</span>
                 </label>
@@ -399,7 +374,7 @@ const Signup = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    className="flex-1 py-2.5 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   >
                     {loading ? (
                       <span className="flex items-center justify-center space-x-2">
@@ -422,10 +397,21 @@ const Signup = () => {
           <p className="text-center mt-6 text-gray-700">
             Already have an account?{" "}
             <Link
-              to="/login"
-              className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+              to="/seller/login"
+              className="text-green-600 hover:text-green-700 font-semibold transition-colors"
             >
               Sign in
+            </Link>
+          </p>
+
+          {/* Switch to Buyer */}
+          <p className="text-center mt-4 text-gray-600 text-sm">
+            Are you a buyer?{" "}
+            <Link
+              to="/buyer/signup"
+              className="text-green-600 hover:text-green-700 font-semibold transition-colors"
+            >
+              Sign up as buyer
             </Link>
           </p>
         </div>
@@ -434,4 +420,4 @@ const Signup = () => {
   );
 };
 
-export default Signup;
+export default SellerSignup;
