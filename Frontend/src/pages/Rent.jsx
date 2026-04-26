@@ -4,6 +4,16 @@ import SearchBar from "../components/SearchBar";
 import { getAllProperties } from "../api/propertyApi";
 import * as fallbackModule from "../data/properties";
 
+const buildRentFilters = (filters = {}) => ({
+  listingType: "rent",
+  location: filters.location || undefined,
+  propertyType: filters.propertyType || undefined,
+  priceMin: filters.priceMin || undefined,
+  priceMax: filters.priceMax || undefined,
+  minBedrooms: filters.minBedrooms || undefined,
+  limit: 100,
+});
+
 const Rent = () => {
   const [allProperties, setAllProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
@@ -14,7 +24,7 @@ const Rent = () => {
 
   // Fetch properties from API
   useEffect(() => {
-    fetchProperties();
+    fetchProperties({});
   }, []);
 
   // Re-filter when search filters or price range changes
@@ -22,23 +32,25 @@ const Rent = () => {
     applyFilters();
   }, [searchFilters, priceRange, allProperties]);
 
-  const fetchProperties = async () => {
+  const fetchProperties = async (filters = {}) => {
     setLoading(true);
     setError("");
     try {
-      const response = await getAllProperties({ 
-        limit: 100 
-      });
+      const response = await getAllProperties(buildRentFilters(filters));
       if (response.success && response.data) {
         setAllProperties(response.data);
       } else {
         // Use fallback data
-        const rentProperties = (fallbackModule.default || []).filter(p => p.listingType === "rent" || p.listingType === "buy" || p.type === "rent" || p.type === "buy");
+        const rentProperties = (fallbackModule.default || []).filter(
+          (p) => (p.listingType === "rent" || p.type === "rent") && (p.status === undefined || p.status === "available")
+        );
         setAllProperties(rentProperties);
       }
     } catch (err) {
       console.error("Error fetching properties:", err);
-      const rentProperties = (fallbackModule.default || []).filter(p => p.listingType === "rent" || p.listingType === "buy" || p.type === "rent" || p.type === "buy");
+      const rentProperties = (fallbackModule.default || []).filter(
+        (p) => (p.listingType === "rent" || p.type === "rent") && (p.status === undefined || p.status === "available")
+      );
       setAllProperties(rentProperties);
       setError("Showing cached properties. Unable to fetch latest listings.");
     } finally {
@@ -56,9 +68,9 @@ const Rent = () => {
       );
     }
 
-    // Filter by property type
-    if (searchFilters.type && searchFilters.type !== "") {
-      result = result.filter(p => p.propertyType === searchFilters.type || p.type === searchFilters.type);
+    // Filter by property category
+    if (searchFilters.propertyType && searchFilters.propertyType !== "") {
+      result = result.filter(p => p.propertyType === searchFilters.propertyType || p.type === searchFilters.propertyType);
     }
 
     // Filter by price range
@@ -72,6 +84,7 @@ const Rent = () => {
 
   const handleSearch = (filters) => {
     setSearchFilters(filters);
+    fetchProperties(filters);
   };
 
   return (
@@ -93,8 +106,8 @@ const Rent = () => {
               whether you are looking to rent or purchase.
             </p>
 
-            <div className="max-w-2xl mx-auto">
-              <SearchBar onSearch={handleSearch} />
+            <div className="max-w-5xl mx-auto">
+              <SearchBar onSearch={handleSearch} defaultListingType="rent" hideListingType />
             </div>
           </div>
 

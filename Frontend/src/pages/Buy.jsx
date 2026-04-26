@@ -4,6 +4,16 @@ import SearchBar from "../components/SearchBar";
 import { getAllProperties } from "../api/propertyApi";
 import * as fallbackModule from "../data/properties";
 
+const buildBuyFilters = (filters = {}) => ({
+  listingType: "sell",
+  location: filters.location || undefined,
+  propertyType: filters.propertyType || undefined,
+  priceMin: filters.priceMin || undefined,
+  priceMax: filters.priceMax || undefined,
+  minBedrooms: filters.minBedrooms || undefined,
+  limit: 100,
+});
+
 const Buy = () => {
   const [allProperties, setAllProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
@@ -12,26 +22,23 @@ const Buy = () => {
 
   // Fetch properties from API
   useEffect(() => {
-    fetchProperties();
+    fetchProperties({});
   }, []);
 
-  const fetchProperties = async () => {
+  const fetchProperties = async (filters = {}) => {
     setLoading(true);
     setError("");
     try {
-      const response = await getAllProperties({ 
-        // Backend uses listingType: sell | rent
-        // Buy page should show listings available for purchase.
-        listingType: "sell",
-        limit: 100 
-      });
+      const response = await getAllProperties(buildBuyFilters(filters));
       if (response.success && response.data) {
         setAllProperties(response.data);
         setFilteredProperties(response.data);
       } else {
         // Use fallback data
         const buyProperties = (fallbackModule.default || []).filter(
-          (p) => p.listingType === "sell" || p.listingType === "buy" || p.type === "buy"
+          (p) =>
+            (p.listingType === "sell" || p.listingType === "buy" || p.type === "buy") &&
+            (p.status === undefined || p.status === "available")
         );
         setAllProperties(buyProperties);
         setFilteredProperties(buyProperties);
@@ -40,7 +47,9 @@ const Buy = () => {
       console.error("Error fetching properties:", err);
       // Use fallback data on error
       const buyProperties = (fallbackModule.default || []).filter(
-        (p) => p.listingType === "sell" || p.listingType === "buy" || p.type === "buy"
+        (p) =>
+          (p.listingType === "sell" || p.listingType === "buy" || p.type === "buy") &&
+          (p.status === undefined || p.status === "available")
       );
       setAllProperties(buyProperties);
       setFilteredProperties(buyProperties);
@@ -50,30 +59,8 @@ const Buy = () => {
     }
   };
 
-  const handleSearch = (filters) => {
-    let result = allProperties;
-
-    if (filters.location) {
-      result = result.filter(p =>
-        p.location?.toLowerCase().includes(filters.location.toLowerCase())
-      );
-    }
-
-    if (filters.type && filters.type !== "") {
-      // SearchBar sends buy/rent. On Buy page, buy maps to sell listings.
-      const normalizedListingType =
-        filters.type === "buy" ? "sell" : filters.type;
-
-      result = result.filter(
-        (p) =>
-          p.listingType === normalizedListingType ||
-          p.listingType === filters.type ||
-          p.propertyType === filters.type ||
-          p.type === filters.type
-      );
-    }
-
-    setFilteredProperties(result);
+  const handleSearch = async (filters) => {
+    await fetchProperties(filters);
   };
 
   return (
@@ -93,8 +80,8 @@ const Buy = () => {
               Explore thousands of properties available for purchase. Find your dream home with our comprehensive listings.
             </p>
 
-            <div className="max-w-2xl mx-auto">
-              <SearchBar onSearch={handleSearch} />
+            <div className="max-w-5xl mx-auto">
+              <SearchBar onSearch={handleSearch} defaultListingType="sell" hideListingType />
             </div>
           </div>
         </div>

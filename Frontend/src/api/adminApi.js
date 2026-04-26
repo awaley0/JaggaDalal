@@ -27,6 +27,23 @@ export const getMonthlyStats = async () => {
 };
 
 /**
+ * Get admin commission revenue report
+ */
+export const getAdminRevenueReport = async (filters = {}) => {
+  try {
+    const params = new URLSearchParams();
+    if (filters.page) params.append("page", filters.page);
+    if (filters.limit) params.append("limit", filters.limit);
+
+    const response = await axiosInstance.get(`/admin/dashboard/revenue-report?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching admin revenue report:", error);
+    throw error;
+  }
+};
+
+/**
  * Get weekly user activity
  */
 export const getWeeklyActivity = async () => {

@@ -5,15 +5,33 @@ import axios from './axios';
  */
 export const sendMessage = async (receiverId, message, propertyId = null, messageType = 'text') => {
   try {
+    const extraPayload =
+      typeof messageType === 'object' && messageType !== null ? messageType : { messageType };
+
     const response = await axios.post('/chat/send', {
       receiverId,
       message,
       propertyId,
-      messageType,
+      ...extraPayload,
     });
     return response.data;
   } catch (error) {
     throw error.response?.data || { error: 'Failed to send message' };
+  }
+};
+
+/**
+ * Send a message directly to admin (buyer flow)
+ */
+export const sendMessageToAdmin = async (propertyId = null, message = '') => {
+  try {
+    const response = await axios.post('/chat/send-admin', {
+      propertyId,
+      message,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to send message to admin' };
   }
 };
 

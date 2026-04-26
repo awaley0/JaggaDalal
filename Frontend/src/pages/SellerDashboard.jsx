@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "../api/axios";
@@ -24,6 +24,14 @@ const SellerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAddProperty, setShowAddProperty] = useState(false);
+  const [showRevenueReport, setShowRevenueReport] = useState(false);
+  const [revenueReportLoading, setRevenueReportLoading] = useState(false);
+  const [sellerRevenueReport, setSellerRevenueReport] = useState([]);
+  const [sellerRevenueSummary, setSellerRevenueSummary] = useState(null);
+  const [listingFilter, setListingFilter] = useState("all");
+  const [bookingFilter, setBookingFilter] = useState("all");
+  const bookingSectionRef = useRef(null);
+  const listingSectionRef = useRef(null);
 
   // Fetch seller's properties
   useEffect(() => {
@@ -96,6 +104,60 @@ const SellerDashboard = () => {
     return "bg-slate-100 text-slate-700 border border-slate-200";
   };
 
+  const openRevenueReport = async () => {
+    try {
+      setRevenueReportLoading(true);
+      const response = await axios.get("/properties/seller/revenue-report?page=1&limit=100");
+      setSellerRevenueReport(response?.data?.data || []);
+      setSellerRevenueSummary(response?.data?.summary || null);
+      setShowRevenueReport(true);
+    } catch (err) {
+      console.error("Error loading seller revenue report:", err);
+      setError("Failed to load seller revenue report");
+    } finally {
+      setRevenueReportLoading(false);
+    }
+  };
+
+  const filteredBookings = useMemo(() => {
+    if (bookingFilter === "all") return bookings;
+    return bookings.filter((booking) => String(booking.status || "").toLowerCase() === bookingFilter);
+  }, [bookings, bookingFilter]);
+
+  const filteredListings = useMemo(() => {
+    if (listingFilter === "all") return properties;
+    return properties.filter((property) => String(property.status || "").toLowerCase() === listingFilter);
+  }, [properties, listingFilter]);
+
+  const focusSection = (sectionRef) => {
+    sectionRef?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleOverviewRedirect = (target) => {
+    if (target === "inventory") {
+      setListingFilter("all");
+      focusSection(listingSectionRef);
+      return;
+    }
+
+    if (target === "activeListings") {
+      setListingFilter("available");
+      focusSection(listingSectionRef);
+      return;
+    }
+
+    if (target === "pendingBookings") {
+      setBookingFilter("pending");
+      focusSection(bookingSectionRef);
+      return;
+    }
+
+    if (target === "completedBookings") {
+      setBookingFilter("completed");
+      focusSection(bookingSectionRef);
+    }
+  };
+
 
 
   return (
@@ -142,34 +204,125 @@ const SellerDashboard = () => {
           )}
 
           <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleOverviewRedirect("inventory")}
+              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm text-left hover:shadow-md transition-shadow"
+            >
               <p className="text-xs uppercase tracking-wide text-slate-500">Total Inventory</p>
               <p className="text-3xl font-black text-slate-900 mt-2">{stats.totalProperties || 0}</p>
-              <p className="text-xs text-slate-500 mt-2">Properties managed by you</p>
-            </article>
-            <article className="rounded-2xl border border-emerald-200 bg-linear-to-br from-emerald-50 to-white p-5 shadow-sm">
+              <p className="text-xs text-slate-500 mt-2">Click to view all your listings</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOverviewRedirect("activeListings")}
+              className="rounded-2xl border border-emerald-200 bg-linear-to-br from-emerald-50 to-white p-5 shadow-sm text-left hover:shadow-md transition-shadow"
+            >
               <p className="text-xs uppercase tracking-wide text-emerald-700">Active Listings</p>
               <p className="text-3xl font-black text-emerald-700 mt-2">{stats.activeListings || 0}</p>
-              <p className="text-xs text-emerald-700/80 mt-2">Currently live in marketplace</p>
-            </article>
-            <article className="rounded-2xl border border-amber-200 bg-linear-to-br from-amber-50 to-white p-5 shadow-sm">
+              <p className="text-xs text-emerald-700/80 mt-2">Click to show only active listings</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOverviewRedirect("pendingBookings")}
+              className="rounded-2xl border border-amber-200 bg-linear-to-br from-amber-50 to-white p-5 shadow-sm text-left hover:shadow-md transition-shadow"
+            >
               <p className="text-xs uppercase tracking-wide text-amber-700">Pending Bookings</p>
               <p className="text-3xl font-black text-amber-700 mt-2">{stats.pendingBookings || 0}</p>
-              <p className="text-xs text-amber-700/80 mt-2">Need your confirmation</p>
-            </article>
-            <article className="rounded-2xl border border-blue-200 bg-linear-to-br from-blue-50 to-white p-5 shadow-sm">
+              <p className="text-xs text-amber-700/80 mt-2">Click to focus pending bookings</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOverviewRedirect("completedBookings")}
+              className="rounded-2xl border border-blue-200 bg-linear-to-br from-blue-50 to-white p-5 shadow-sm text-left hover:shadow-md transition-shadow"
+            >
               <p className="text-xs uppercase tracking-wide text-blue-700">Completed Bookings</p>
               <p className="text-3xl font-black text-blue-700 mt-2">{stats.completedBookings || 0}</p>
-              <p className="text-xs text-blue-700/80 mt-2">Successful transactions</p>
-            </article>
-            <article className="rounded-2xl border border-violet-200 bg-linear-to-br from-violet-50 to-white p-5 shadow-sm">
+              <p className="text-xs text-blue-700/80 mt-2">Click to focus completed bookings</p>
+            </button>
+            <button
+              type="button"
+              onClick={openRevenueReport}
+              className="rounded-2xl border border-violet-200 bg-linear-to-br from-violet-50 to-white p-5 shadow-sm text-left hover:shadow-md transition-shadow"
+            >
               <p className="text-xs uppercase tracking-wide text-violet-700">Revenue</p>
               <p className="text-3xl font-black text-violet-700 mt-2">{formatRs(stats.totalRevenue || 0)}</p>
-              <p className="text-xs text-violet-700/80 mt-2">From completed bookings</p>
-            </article>
+              <p className="text-xs text-violet-700/80 mt-2">Net after admin commission (3%)</p>
+            </button>
           </section>
 
-          <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {showRevenueReport && (
+            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
+                <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Seller Revenue Report</h3>
+                    <p className="text-sm text-slate-600">Approved sold/rented listings with 3% admin commission</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowRevenueReport(false)}
+                    className="text-slate-500 hover:text-slate-700 text-2xl leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="px-6 py-4 border-b border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <p className="text-slate-500">Gross Property Value</p>
+                    <p className="text-lg font-bold text-slate-900">{formatRs(sellerRevenueSummary?.totalGross || 0)}</p>
+                  </div>
+                  <div className="rounded-lg bg-rose-50 p-3">
+                    <p className="text-rose-700">Admin Commission (3%)</p>
+                    <p className="text-lg font-bold text-rose-700">{formatRs(sellerRevenueSummary?.totalAdminCommission || 0)}</p>
+                  </div>
+                  <div className="rounded-lg bg-emerald-50 p-3">
+                    <p className="text-emerald-700">Your Net Revenue (97%)</p>
+                    <p className="text-lg font-bold text-emerald-700">{formatRs(sellerRevenueSummary?.totalSellerNet || 0)}</p>
+                  </div>
+                </div>
+
+                <div className="overflow-auto p-6">
+                  {revenueReportLoading ? (
+                    <p className="text-slate-500">Loading report...</p>
+                  ) : sellerRevenueReport.length === 0 ? (
+                    <p className="text-slate-500">No approved sold/rented properties found for your account.</p>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="text-left bg-slate-50 border-y border-slate-200">
+                        <tr>
+                          <th className="px-3 py-2">Property</th>
+                          <th className="px-3 py-2">Status</th>
+                          <th className="px-3 py-2">Gross</th>
+                          <th className="px-3 py-2">Admin 3%</th>
+                          <th className="px-3 py-2">Your 97%</th>
+                          <th className="px-3 py-2">Closed</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sellerRevenueReport.map((item) => (
+                          <tr key={item.propertyId} className="border-b border-slate-100">
+                            <td className="px-3 py-2">
+                              <p className="font-medium text-slate-900">{item.title}</p>
+                              <p className="text-xs text-slate-500">{item.location || "N/A"}</p>
+                            </td>
+                            <td className="px-3 py-2 capitalize">{item.status}</td>
+                            <td className="px-3 py-2">{formatRs(item.grossAmount || 0)}</td>
+                            <td className="px-3 py-2 text-rose-700 font-semibold">{formatRs(item.adminCommission || 0)}</td>
+                            <td className="px-3 py-2 text-emerald-700 font-semibold">{formatRs(item.sellerNet || 0)}</td>
+                            <td className="px-3 py-2">{new Date(item.closedAt).toLocaleDateString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <section ref={bookingSectionRef} className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-slate-900">Recent Booking Activity</h2>
@@ -181,13 +334,43 @@ const SellerDashboard = () => {
                 </button>
               </div>
               <div className="p-5 sm:p-6">
-                {bookings.length === 0 ? (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setBookingFilter("all")}
+                    className={`px-3 py-1.5 text-xs rounded-full font-semibold ${
+                      bookingFilter === "all" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBookingFilter("pending")}
+                    className={`px-3 py-1.5 text-xs rounded-full font-semibold ${
+                      bookingFilter === "pending" ? "bg-amber-500 text-white" : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    Pending
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBookingFilter("completed")}
+                    className={`px-3 py-1.5 text-xs rounded-full font-semibold ${
+                      bookingFilter === "completed" ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-700"
+                    }`}
+                  >
+                    Completed
+                  </button>
+                </div>
+
+                {filteredBookings.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-                    <p className="text-slate-600">No booking activity yet for your listings.</p>
+                    <p className="text-slate-600">No booking activity for this filter.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {bookings.slice(0, 6).map((booking) => (
+                    {filteredBookings.slice(0, 6).map((booking) => (
                       <div key={booking._id} className="rounded-xl border border-slate-200 p-4 hover:border-slate-300 transition-all">
                         <div className="flex flex-wrap gap-3 items-center justify-between">
                           <div>
@@ -245,15 +428,35 @@ const SellerDashboard = () => {
             onPropertyAdded={handlePropertyAdded}
           />
 
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 sm:p-6">
+          <section ref={listingSectionRef} className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
               <h2 className="text-2xl font-bold text-slate-900">Your Listings</h2>
-              <button
-                onClick={() => setShowAddProperty(true)}
-                className="px-4 py-2 bg-linear-to-r from-slate-900 to-blue-700 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-blue-600 transition-all"
-              >
-                Add New Property
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setListingFilter("all")}
+                  className={`px-3 py-1.5 text-xs rounded-full font-semibold ${
+                    listingFilter === "all" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setListingFilter("available")}
+                  className={`px-3 py-1.5 text-xs rounded-full font-semibold ${
+                    listingFilter === "available" ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-700"
+                  }`}
+                >
+                  Active
+                </button>
+                <button
+                  onClick={() => setShowAddProperty(true)}
+                  className="px-4 py-2 bg-linear-to-r from-slate-900 to-blue-700 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-blue-600 transition-all"
+                >
+                  Add New Property
+                </button>
+              </div>
             </div>
 
             {loading ? (
@@ -264,19 +467,19 @@ const SellerDashboard = () => {
                 </svg>
                 <p className="text-slate-600 mt-4">Loading your listings...</p>
               </div>
-            ) : properties.length === 0 ? (
+            ) : filteredListings.length === 0 ? (
               <div className="text-center py-14 rounded-xl border border-dashed border-slate-300 bg-slate-50">
-                <p className="text-slate-700 mb-4">No properties listed yet. Launch your first listing now.</p>
+                <p className="text-slate-700 mb-4">No listings found for this filter.</p>
                 <button
                   onClick={() => setShowAddProperty(true)}
                   className="px-6 py-2.5 bg-linear-to-r from-slate-900 to-blue-700 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-blue-600 transition-all"
                 >
-                  Add First Property
+                  Add New Property
                 </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                {properties.map((property) => (
+                {filteredListings.map((property) => (
                   <article
                     key={property._id}
                     className="group rounded-2xl border border-slate-200 overflow-hidden bg-white hover:shadow-xl hover:border-slate-300 transition-all"

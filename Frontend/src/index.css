@@ -25,9 +25,9 @@
   transition: none;
 }
 
-/* Smooth input focus animation */
-input:focus,
-select:focus {
+/* Smooth input focus animation (search bar only) */
+.searchbar-form input:focus,
+.searchbar-form select:focus {
   animation: slideIn 0.3s ease-out;
 }
 
@@ -42,8 +42,8 @@ select:focus {
   }
 }
 
-/* Smooth form container entrance */
-form {
+/* Smooth form container entrance (search bar only) */
+.searchbar-form {
   animation: fadeInUp 0.4s ease-out;
 }
 

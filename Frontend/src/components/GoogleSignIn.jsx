@@ -28,8 +28,10 @@ const GoogleSignIn = () => {
 
   const handleGoogleSignIn = () => {
     setIsLoading(true);
-    // Redirect to backend Google OAuth endpoint
-    window.location.href = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"}/auth/google`;
+    // Redirect to backend Google OAuth endpoint via non-api auth path.
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+    const backendOrigin = apiBaseUrl.replace(/\/api\/?$/, "");
+    window.location.href = `${backendOrigin}/auth/google`;
   };
 
   return (

@@ -4,6 +4,7 @@ import properties from "../data/properties"; // Fallback static data
 import { useAuth } from "../context/AuthContext";
 import axiosInstance from "../api/axios";
 import { getPropertyById } from "../api/propertyApi";
+import { sendMessageToAdmin } from "../api/chatApi";
 import PropertyDetailsMap from "../components/Map/PropertyDetailsMap";
 import { addFavorite, removeFavorite, isFavorited } from "../api/favoriteApi";
 import { formatRs } from "../utils/currency";
@@ -17,8 +18,8 @@ const PropertyDetails = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
-  const [showMessageSetup, setShowMessageSetup] = useState(false);
   const [contactLoading, setContactLoading] = useState(false);
+  const [adminMessageLoading, setAdminMessageLoading] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [fallbackPayLoading, setFallbackPayLoading] = useState(false);
@@ -38,10 +39,6 @@ const PropertyDetails = () => {
     email: "",
     phone: "",
     message: "",
-  });
-  const [messageSetupForm, setMessageSetupForm] = useState({
-    buyerName: "",
-    sellerName: "",
   });
 
   useEffect(() => {
@@ -91,11 +88,6 @@ const PropertyDetails = () => {
   };
 
   useEffect(() => {
-    setMessageSetupForm((prev) => ({
-      ...prev,
-      buyerName: user?.name || prev.buyerName || "",
-      sellerName: property?.seller?.name || prev.sellerName || "",
-    }));
     setContactForm((prev) => ({
       ...prev,
       name: user?.name || prev.name || "",
@@ -104,30 +96,6 @@ const PropertyDetails = () => {
       phone: user?.phone || prev.phone || "",
     }));
   }, [user, property?.seller?.name]);
-
-  const handleMessageSetupChange = (e) => {
-    const { name, value } = e.target;
-    setMessageSetupForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleMessageSetupSubmit = (e) => {
-    e.preventDefault();
-    const buyerName = messageSetupForm.buyerName.trim();
-    const targetSellerName = messageSetupForm.sellerName.trim();
-
-    if (!buyerName || !targetSellerName) {
-      alert("Please provide both your name and seller name to continue.");
-      return;
-    }
-
-    setContactForm((prev) => ({
-      ...prev,
-      name: buyerName,
-      sellerName: targetSellerName,
-    }));
-    setShowMessageSetup(false);
-    setShowContactForm(true);
-  };
 
   const handleContactSubmit = async (e) => {
     e.preventDefault();
@@ -175,6 +143,46 @@ const PropertyDetails = () => {
       alert(error.response?.data?.error || "Failed to send your inquiry. Please try again.");
     } finally {
       setContactLoading(false);
+    }
+  };
+
+  const handleAdminMessage = async () => {
+    if (!isAuthenticated) {
+      navigate("/login");
+      return;
+    }
+
+    const propertyId = property?._id || property?.id;
+    if (!propertyId) {
+      alert("Property information is unavailable. Please refresh and try again.");
+      return;
+    }
+
+    try {
+      setAdminMessageLoading(true);
+
+      const buyerName = user?.name || "Buyer";
+      const adminInquiryMessage = [
+        `Hello Admin, I am interested in \"${property.title}\".`,
+        `Buyer: ${buyerName}`,
+      ].join("\n\n");
+
+      const response = await sendMessageToAdmin(propertyId, adminInquiryMessage);
+
+      if (!response?.success || !response?.recipient?.id) {
+        throw new Error("Unable to open admin chat right now.");
+      }
+
+      navigate(
+        `/chat?recipientId=${encodeURIComponent(response.recipient.id)}&recipientName=${encodeURIComponent(
+          response.recipient.name || "Admin"
+        )}&propertyId=${encodeURIComponent(propertyId)}`
+      );
+    } catch (error) {
+      console.error("Admin message error:", error);
+      alert(error?.error || error?.message || "Failed to message admin. Please try again.");
+    } finally {
+      setAdminMessageLoading(false);
     }
   };
 
@@ -288,6 +296,16 @@ const PropertyDetails = () => {
 
   const listingType = (property.listingType || property.type || "").toLowerCase();
   const isRent = listingType === "rent";
+  const propertyStatus = String(property.status || "available").toLowerCase();
+  const isAvailable = propertyStatus === "available";
+  const availabilityLabel =
+    propertyStatus === "sold"
+      ? "Sold"
+      : propertyStatus === "rented"
+      ? "Rented"
+      : propertyStatus === "inactive"
+      ? "Inactive"
+      : "Available";
   const normalizedAreaValue =
     typeof property.area === "object" ? property.area?.value : property.area;
   const normalizedAreaUnit =
@@ -440,6 +458,15 @@ const PropertyDetails = () => {
                 <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 capitalize">
                   {isRent ? "For Rent" : "For Sale"}
                 </span>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    isAvailable
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-rose-100 text-rose-700"
+                  }`}
+                >
+                  {availabilityLabel}
+                </span>
                 {property.verified && (
                   <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
                     Verified Listing
@@ -455,6 +482,12 @@ const PropertyDetails = () => {
               {isOwnerViewingListing && (
                 <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
                   You are viewing this listing as the owner. Buyer booking actions are hidden for seller mode.
+                </div>
+              )}
+
+              {!isAvailable && (
+                <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium">
+                  This property is currently {availabilityLabel.toLowerCase()} and cannot be booked right now.
                 </div>
               )}
 
@@ -603,15 +636,17 @@ const PropertyDetails = () => {
                     {listingType === "rent" && (
                       <button
                         onClick={() => {
+                          if (!isAvailable) return;
                           if (!isAuthenticated) {
                             navigate("/login");
                           } else {
                             setShowBookingModal(true);
                           }
                         }}
-                        className="block w-full py-3 text-center bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-all shadow-sm"
+                        disabled={!isAvailable}
+                        className="block w-full py-3 text-center bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-all shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
                       >
-                        Schedule Booking
+                        {isAvailable ? "Schedule Booking" : `Unavailable (${availabilityLabel})`}
                       </button>
                     )}
 
@@ -619,15 +654,17 @@ const PropertyDetails = () => {
                     {listingType === "sell" && (
                       <button
                         onClick={() => {
+                          if (!isAvailable) return;
                           if (!isAuthenticated) {
                             navigate("/login");
                           } else {
                             setShowContactForm(true);
                           }
                         }}
-                        className="block w-full py-3 text-center bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-all shadow-sm"
+                        disabled={!isAvailable}
+                        className="block w-full py-3 text-center bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-all shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
                       >
-                        Inquire Now
+                        {isAvailable ? "Inquire Now" : `Unavailable (${availabilityLabel})`}
                       </button>
                     )}
 
@@ -665,34 +702,14 @@ const PropertyDetails = () => {
                       </button>
                     )}
 
-                    {/* Book Property Button - Always Visible */}
+                    {/* Send message to admin */}
                     <button
-                      onClick={() => {
-                        if (!isAuthenticated) {
-                          navigate("/login");
-                        } else {
-                          setShowBookingModal(true);
-                        }
-                      }}
-                      className="block w-full py-3 text-center bg-amber-500 text-white font-semibold rounded-xl hover:bg-amber-600 transition-all shadow-md hover:shadow-lg"
+                      onClick={handleAdminMessage}
+                      disabled={adminMessageLoading}
+                      className="block w-full py-3 text-center bg-amber-500 text-white font-semibold rounded-xl hover:bg-amber-600 transition-all shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Book Property
+                      {adminMessageLoading ? "Sending..." : "Send Message"}
                     </button>
-
-                    {listingType === "sell" && (
-                      <button
-                        onClick={() => {
-                          if (!isAuthenticated) {
-                            navigate("/login");
-                          } else {
-                            setShowMessageSetup(true);
-                          }
-                        }}
-                        className="block w-full py-3 text-center bg-slate-100 text-slate-900 font-semibold rounded-xl hover:bg-slate-200 transition-all"
-                      >
-                        Send Message
-                      </button>
-                    )}
                   </>
                 ) : (
                   <>
@@ -792,46 +809,6 @@ const PropertyDetails = () => {
                   >
                     {contactLoading ? "Sending..." : "Send Message"}
                   </button>
-                </form>
-              )}
-
-              {/* Message Setup Prompt */}
-              {showMessageSetup && shouldShowBuyerActions && (
-                <form onSubmit={handleMessageSetupSubmit} className="space-y-4 mb-6 p-4 rounded-xl border border-slate-200 bg-slate-50">
-                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Start a Conversation</h4>
-                  <input
-                    type="text"
-                    name="buyerName"
-                    placeholder="Your Name"
-                    value={messageSetupForm.buyerName}
-                    onChange={handleMessageSetupChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    required
-                  />
-                  <input
-                    type="text"
-                    name="sellerName"
-                    placeholder="Seller Name"
-                    value={messageSetupForm.sellerName}
-                    onChange={handleMessageSetupChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    required
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowMessageSetup(false)}
-                      className="flex-1 py-2.5 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-white transition"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
-                    >
-                      Continue
-                    </button>
-                  </div>
                 </form>
               )}
 

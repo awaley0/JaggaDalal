@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart,
   Bar,
@@ -18,6 +18,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import {
   getDashboardStats,
+  getAdminRevenueReport,
   getMonthlyStats,
   getWeeklyActivity,
   getRecentProperties,
@@ -36,6 +37,7 @@ import { formatRs } from "../utils/currency";
 
 const AdminDashboard = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
   // Dashboard state
@@ -50,6 +52,7 @@ const AdminDashboard = () => {
   
   // Search and filter states
   const [propertySearch, setPropertySearch] = useState("");
+  const [propertyStatusFilter, setPropertyStatusFilter] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [bookingSearch, setBookingSearch] = useState("");
   const [bookingStatusFilter, setBookingStatusFilter] = useState("");
@@ -60,6 +63,10 @@ const AdminDashboard = () => {
   const [propertiesLoading, setPropertiesLoading] = useState(false);
   const [usersLoading, setUsersLoading] = useState(false);
   const [bookingsLoading, setBookingsLoading] = useState(false);
+  const [isRevenueReportOpen, setIsRevenueReportOpen] = useState(false);
+  const [revenueReportLoading, setRevenueReportLoading] = useState(false);
+  const [adminRevenueReport, setAdminRevenueReport] = useState([]);
+  const [adminRevenueSummary, setAdminRevenueSummary] = useState(null);
 
   // Pagination
   const [propertyPage, setPropertyPage] = useState(1);
@@ -118,6 +125,7 @@ const AdminDashboard = () => {
         setPropertiesLoading(true);
         const filters = { page: propertyPage, limit: 10 };
         if (propertySearch) filters.search = propertySearch;
+        if (propertyStatusFilter) filters.status = propertyStatusFilter;
         const response = await getAllPropertiesForAdmin(filters);
         setProperties(response.data || []);
         setPropertyPagination(response.pagination);
@@ -129,7 +137,16 @@ const AdminDashboard = () => {
     };
 
     fetchProperties();
-  }, [propertyPage, propertySearch]);
+  }, [propertyPage, propertySearch, propertyStatusFilter]);
+
+  useEffect(() => {
+    if (location.pathname !== "/admin/properties") return;
+
+    const query = new URLSearchParams(location.search);
+    const statusFromQuery = query.get("status") || "";
+    setPropertyStatusFilter(statusFromQuery);
+    setPropertyPage(1);
+  }, [location.pathname, location.search]);
 
   // Fetch users for management
   useEffect(() => {
@@ -262,6 +279,25 @@ const AdminDashboard = () => {
     }
   };
 
+  const openRevenueReport = async () => {
+    try {
+      setRevenueReportLoading(true);
+      const response = await getAdminRevenueReport({ page: 1, limit: 100 });
+      setAdminRevenueReport(response?.data || []);
+      setAdminRevenueSummary(response?.summary || null);
+      setIsRevenueReportOpen(true);
+    } catch (err) {
+      console.error("Error loading revenue report:", err);
+      alert("Failed to load revenue report");
+    } finally {
+      setRevenueReportLoading(false);
+    }
+  };
+
+  const goToAdminSection = (path) => {
+    navigate(path);
+  };
+
   // Property types data for pie chart
   const propertyTypesData = stats?.propertyDistribution
     ? stats.propertyDistribution.map((item) => ({
@@ -307,12 +343,16 @@ const AdminDashboard = () => {
         <>
           {/* Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-shadow hover:border-amber-300">
+            <button
+              type="button"
+              onClick={() => goToAdminSection("/admin/properties")}
+              className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-shadow hover:border-amber-300 text-left w-full"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-600 text-sm font-medium">Total Properties</p>
                   <p className="text-3xl font-bold text-slate-900 mt-2">{stats?.totalProperties || 0}</p>
-                  <p className="text-xs text-emerald-600 mt-2">Real-time data</p>
+                  <p className="text-xs text-emerald-600 mt-2">Click to manage properties</p>
                 </div>
                 <div className="p-3 bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg">
                   <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -325,14 +365,18 @@ const AdminDashboard = () => {
                   </svg>
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-shadow hover:border-amber-300">
+            <button
+              type="button"
+              onClick={() => goToAdminSection("/admin/users")}
+              className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-shadow hover:border-amber-300 text-left w-full"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-600 text-sm font-medium">Total Users</p>
                   <p className="text-3xl font-bold text-slate-900 mt-2">{stats?.totalUsers || 0}</p>
-                  <p className="text-xs text-emerald-600 mt-2">Real-time data</p>
+                  <p className="text-xs text-emerald-600 mt-2">Click to manage users</p>
                 </div>
                 <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -345,14 +389,18 @@ const AdminDashboard = () => {
                   </svg>
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-shadow hover:border-amber-300">
+            <button
+              type="button"
+              onClick={() => goToAdminSection("/admin/properties?status=available")}
+              className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-shadow hover:border-amber-300 text-left w-full"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-600 text-sm font-medium">Active Listings</p>
                   <p className="text-3xl font-bold text-slate-900 mt-2">{stats?.activeListings || 0}</p>
-                  <p className="text-xs text-amber-600 mt-2">Available now</p>
+                  <p className="text-xs text-amber-600 mt-2">Click to view available listings</p>
                 </div>
                 <div className="p-3 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -365,16 +413,20 @@ const AdminDashboard = () => {
                   </svg>
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-shadow hover:border-amber-300">
+            <button
+              type="button"
+              onClick={openRevenueReport}
+              className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-shadow hover:border-amber-300 text-left w-full"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-600 text-sm font-medium">Total Revenue</p>
                   <p className="text-3xl font-bold text-slate-900 mt-2">
                     Rs {(stats?.totalRevenue || 0).toFixed(1)}K
                   </p>
-                  <p className="text-xs text-emerald-600 mt-2">From bookings</p>
+                  <p className="text-xs text-emerald-600 mt-2">Admin commission (3%)</p>
                 </div>
                 <div className="p-3 bg-purple-100 rounded-lg">
                   <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -387,8 +439,79 @@ const AdminDashboard = () => {
                   </svg>
                 </div>
               </div>
-            </div>
+            </button>
           </div>
+
+          {isRevenueReportOpen && (
+            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
+                <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Admin Revenue Report</h3>
+                    <p className="text-sm text-slate-600">3% commission on approved sold/rented properties</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsRevenueReportOpen(false)}
+                    className="text-slate-500 hover:text-slate-700 text-2xl leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="px-6 py-4 border-b border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <p className="text-slate-500">Gross Property Value</p>
+                    <p className="text-lg font-bold text-slate-900">{formatRs(adminRevenueSummary?.totalGross || 0)}</p>
+                  </div>
+                  <div className="rounded-lg bg-emerald-50 p-3">
+                    <p className="text-emerald-700">Admin Commission (3%)</p>
+                    <p className="text-lg font-bold text-emerald-700">{formatRs(adminRevenueSummary?.totalAdminCommission || 0)}</p>
+                  </div>
+                  <div className="rounded-lg bg-blue-50 p-3">
+                    <p className="text-blue-700">Seller Net (97%)</p>
+                    <p className="text-lg font-bold text-blue-700">{formatRs(adminRevenueSummary?.totalSellerNet || 0)}</p>
+                  </div>
+                </div>
+
+                <div className="overflow-auto p-6">
+                  {revenueReportLoading ? (
+                    <p className="text-slate-500">Loading report...</p>
+                  ) : adminRevenueReport.length === 0 ? (
+                    <p className="text-slate-500">No eligible sold/rented approved properties found.</p>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="text-left bg-slate-50 border-y border-slate-200">
+                        <tr>
+                          <th className="px-3 py-2">Property</th>
+                          <th className="px-3 py-2">Seller</th>
+                          <th className="px-3 py-2">Status</th>
+                          <th className="px-3 py-2">Gross</th>
+                          <th className="px-3 py-2">Admin 3%</th>
+                          <th className="px-3 py-2">Seller 97%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {adminRevenueReport.map((item) => (
+                          <tr key={item.propertyId} className="border-b border-slate-100">
+                            <td className="px-3 py-2">
+                              <p className="font-medium text-slate-900">{item.title}</p>
+                              <p className="text-xs text-slate-500">{item.location || "N/A"}</p>
+                            </td>
+                            <td className="px-3 py-2">{item.seller?.name || "N/A"}</td>
+                            <td className="px-3 py-2 capitalize">{item.status}</td>
+                            <td className="px-3 py-2">{formatRs(item.grossAmount || 0)}</td>
+                            <td className="px-3 py-2 text-emerald-700 font-semibold">{formatRs(item.adminCommission || 0)}</td>
+                            <td className="px-3 py-2 text-blue-700 font-semibold">{formatRs(item.sellerNet || 0)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -586,6 +709,20 @@ const AdminDashboard = () => {
           }}
           className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
         />
+        <select
+          value={propertyStatusFilter}
+          onChange={(e) => {
+            setPropertyStatusFilter(e.target.value);
+            setPropertyPage(1);
+          }}
+          className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+        >
+          <option value="">All Statuses</option>
+          <option value="available">Available</option>
+          <option value="sold">Sold</option>
+          <option value="rented">Rented</option>
+          <option value="inactive">Inactive</option>
+        </select>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">

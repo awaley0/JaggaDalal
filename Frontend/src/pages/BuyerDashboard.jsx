@@ -152,6 +152,39 @@ const BuyerDashboard = () => {
             <p className="text-gray-600">Manage your bookings and favorites</p>
           </div>
 
+          {/* Overview */}
+          <div className="mb-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <button
+              type="button"
+              onClick={() => setActiveTab("bookings")}
+              className="bg-white rounded-xl border border-gray-200 p-5 text-left shadow-sm hover:shadow-md transition-shadow"
+            >
+              <p className="text-xs uppercase tracking-wide text-blue-700">My Bookings</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{bookings.length}</p>
+              <p className="text-xs text-gray-600 mt-2">Click to open bookings</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("favorites")}
+              className="bg-white rounded-xl border border-gray-200 p-5 text-left shadow-sm hover:shadow-md transition-shadow"
+            >
+              <p className="text-xs uppercase tracking-wide text-rose-700">Favorites</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{favorites.length}</p>
+              <p className="text-xs text-gray-600 mt-2">Click to open saved properties</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("market")}
+              className="bg-white rounded-xl border border-gray-200 p-5 text-left shadow-sm hover:shadow-md transition-shadow"
+            >
+              <p className="text-xs uppercase tracking-wide text-emerald-700">All Listings</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{marketProperties.length}</p>
+              <p className="text-xs text-gray-600 mt-2">Click to browse marketplace</p>
+            </button>
+          </div>
+
           {/* Error Alert */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start justify-between">

@@ -9,6 +9,16 @@ const PropertyCard = ({ property }) => {
   const [isFav, setIsFav] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const propertyStatus = String(property.status || "available").toLowerCase();
+  const isUnavailable = propertyStatus !== "available";
+  const statusLabel =
+    propertyStatus === "sold"
+      ? "Sold"
+      : propertyStatus === "rented"
+      ? "Rented"
+      : propertyStatus === "inactive"
+      ? "Inactive"
+      : "Available";
 
   // Load favorite status on component mount
   useEffect(() => {
@@ -76,6 +86,11 @@ const PropertyCard = ({ property }) => {
 
           {/* Badges */}
           <div className="absolute top-3 left-3 flex gap-2">
+            {isUnavailable && (
+              <span className="px-3 py-1 bg-linear-to-r from-rose-600 to-red-600 text-white text-xs font-semibold rounded-full shadow-lg">
+                {statusLabel}
+              </span>
+            )}
             {property.featured && (
               <span className="px-3 py-1 bg-linear-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold rounded-full shadow-lg">
                 Featured

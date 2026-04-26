@@ -377,6 +377,7 @@ export default function Chat() {
                 bookingId={selectedChat.bookingId}
                 propertyId={selectedChat.propertyId}
                 recipientName={selectedChat.userName}
+                recipientAvatar={selectedChat.avatar || null}
                 isOpen={true}
               />
             ) : (

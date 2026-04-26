@@ -139,15 +139,20 @@ const ManageUsers = () => {
                   <td className="px-6 py-4 text-sm">{user.email}</td>
                   <td className="px-6 py-4 text-sm">{user.phone || "N/A"}</td>
                   <td className="px-6 py-4 text-sm">
-                    <select
-                      value={user.role}
-                      onChange={(e) => handleRoleChange(user._id, e.target.value)}
-                      className="px-2 py-1 border rounded text-sm focus:outline-none capitalize"
-                    >
-                      <option value="buyer">Buyer</option>
-                      <option value="seller">Seller</option>
-                      <option value="admin">Admin</option>
-                    </select>
+                    {user.role === "admin" ? (
+                      <span className="inline-block px-2 py-1 border rounded text-sm capitalize bg-slate-100 text-slate-700">
+                        Admin
+                      </span>
+                    ) : (
+                      <select
+                        value={user.role}
+                        onChange={(e) => handleRoleChange(user._id, e.target.value)}
+                        className="px-2 py-1 border rounded text-sm focus:outline-none capitalize"
+                      >
+                        <option value="buyer">Buyer</option>
+                        <option value="seller">Seller</option>
+                      </select>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     {user.roleRequestStatus === "pending" && user.requestedRole ? (

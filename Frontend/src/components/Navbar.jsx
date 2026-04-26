@@ -152,12 +152,14 @@ const Navbar = () => {
                         )}
                       </span>
                     </Link>
-                    <Link
-                      to="/favorites"
-                      className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                      Favorites
-                    </Link>
+                    {user.role !== "admin" && (
+                      <Link
+                        to="/favorites"
+                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        Favorites
+                      </Link>
+                    )}
                     {user.role === "buyer" && (
                       <Link
                         to="/buyer/dashboard"

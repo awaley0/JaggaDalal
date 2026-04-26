@@ -7,11 +7,25 @@ export const getAllProperties = async (filters = {}) => {
   try {
     const params = new URLSearchParams();
     
+    if (filters.q) params.append("q", filters.q);
     if (filters.category) params.append("category", filters.category);
     if (filters.listingType) params.append("listingType", filters.listingType);
+    if (filters.propertyType) params.append("propertyType", filters.propertyType);
     if (filters.location) params.append("location", filters.location);
+    if (filters.city) params.append("city", filters.city);
+    if (filters.state) params.append("state", filters.state);
+    if (filters.country) params.append("country", filters.country);
     if (filters.priceMin) params.append("priceMin", filters.priceMin);
     if (filters.priceMax) params.append("priceMax", filters.priceMax);
+    if (filters.minBedrooms) params.append("minBedrooms", filters.minBedrooms);
+    if (filters.maxBedrooms) params.append("maxBedrooms", filters.maxBedrooms);
+    if (filters.minBathrooms) params.append("minBathrooms", filters.minBathrooms);
+    if (filters.maxBathrooms) params.append("maxBathrooms", filters.maxBathrooms);
+    if (filters.minArea) params.append("minArea", filters.minArea);
+    if (filters.maxArea) params.append("maxArea", filters.maxArea);
+    if (filters.amenities) params.append("amenities", filters.amenities);
+    if (filters.sortBy) params.append("sortBy", filters.sortBy);
+    if (filters.sortOrder) params.append("sortOrder", filters.sortOrder);
     if (filters.page) params.append("page", filters.page);
     if (filters.limit) params.append("limit", filters.limit);
 
