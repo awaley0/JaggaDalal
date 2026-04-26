@@ -262,7 +262,7 @@ const Login = () => {
               onClick={() => {
                 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
                 const backendOrigin = apiBaseUrl.replace(/\/api\/?$/, "");
-                window.location.href = `${backendOrigin}/auth/google`;
+                window.location.href = `${backendOrigin}/auth/google?role=buyer`;
               }}
               className="w-full py-2.5 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-medium rounded-lg flex items-center justify-center space-x-2 transition-all duration-200"
             >

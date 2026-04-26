@@ -13,6 +13,12 @@ export const updateUserProfile = (profileData) =>
   });
 export const getAllUsers = () => axiosInstance.get("/auth/users");
 
+// OTP endpoints for email verification during signup
+export const sendOTP = (email, name) =>
+  axiosInstance.post("/auth/send-otp", { email, name });
+export const verifyOTP = (email, otp) =>
+  axiosInstance.post("/auth/verify-otp", { email, otp });
+
 // Logout function (client-side)
 export const logout = () => {
   localStorage.removeItem("token");

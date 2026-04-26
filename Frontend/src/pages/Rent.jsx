@@ -4,15 +4,31 @@ import SearchBar from "../components/SearchBar";
 import { getAllProperties } from "../api/propertyApi";
 import * as fallbackModule from "../data/properties";
 
-const buildRentFilters = (filters = {}) => ({
-  listingType: "rent",
-  location: filters.location || undefined,
-  propertyType: filters.propertyType || undefined,
-  priceMin: filters.priceMin || undefined,
-  priceMax: filters.priceMax || undefined,
-  minBedrooms: filters.minBedrooms || undefined,
-  limit: 100,
-});
+const buildRentFilters = (filters = {}) => {
+  const filterObj = {
+    listingType: "rent",
+    limit: 100,
+  };
+
+  // Add optional filters only if they have values
+  if (filters.location && filters.location.trim()) {
+    filterObj.location = filters.location.trim();
+  }
+  if (filters.propertyType && filters.propertyType.trim()) {
+    filterObj.propertyType = filters.propertyType.trim();
+  }
+  if (filters.priceMin && filters.priceMin !== "") {
+    filterObj.priceMin = filters.priceMin;
+  }
+  if (filters.priceMax && filters.priceMax !== "") {
+    filterObj.priceMax = filters.priceMax;
+  }
+  if (filters.minBedrooms && filters.minBedrooms !== "") {
+    filterObj.minBedrooms = filters.minBedrooms;
+  }
+
+  return filterObj;
+};
 
 const Rent = () => {
   const [allProperties, setAllProperties] = useState([]);

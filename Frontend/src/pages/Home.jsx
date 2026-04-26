@@ -455,19 +455,85 @@ const Home = () => {
             </div>
           </div>
 
-          <div className="relative overflow-hidden bg-linear-to-r from-slate-950 via-slate-900 to-indigo-900 py-16 sm:py-24">
-            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,#22d3ee_0%,transparent_35%)]" />
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">Ready to get started?</h2>
-              <p className="text-slate-200 text-lg mb-8 max-w-2xl mx-auto">Create an account and begin your property journey.</p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link to="/signup" className="px-8 py-3 bg-amber-500 text-white font-semibold rounded-xl hover:bg-amber-600 transition-colors shadow-xl shadow-amber-500/20">
-                  Get Started
+          <div className="relative overflow-hidden bg-linear-to-br from-slate-950 via-indigo-950 to-slate-900 py-20 sm:py-32">
+            {/* Animated gradient background elements */}
+            <div className="absolute inset-0">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl -mr-32 -mt-32 animate-pulse" />
+              <div className="absolute bottom-0 left-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl -ml-32 -mb-32 animate-pulse" />
+              <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_50%_50%,#22d3ee_0%,transparent_50%)]" />
+            </div>
+
+            <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center z-10">
+              {/* Badge */}
+              <div className="inline-flex items-center rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-2 mb-6 backdrop-blur-sm">
+                <span className="text-amber-300 font-semibold text-sm tracking-wide">✨ Start Your Journey Today</span>
+              </div>
+
+              {/* Main Heading */}
+              <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-4 tracking-tight leading-tight">
+                Ready to Find Your <span className="bg-linear-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">Perfect Property</span>?
+              </h2>
+
+              {/* Subheading */}
+              <p className="text-slate-300 text-lg sm:text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
+                Join thousands of verified users buying, selling, and renting properties with confidence. Start your real estate journey in minutes.
+              </p>
+
+              {/* Feature highlights */}
+              <div className="grid grid-cols-3 gap-4 sm:gap-6 mb-12 max-w-2xl mx-auto">
+                <div className="flex flex-col items-center">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mb-2">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <p className="text-slate-300 text-xs sm:text-sm font-medium">Quick Setup</p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center mb-2">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <p className="text-slate-300 text-xs sm:text-sm font-medium">100% Secure</p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-500/20 border border-purple-500/40 flex items-center justify-center mb-2">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-slate-300 text-xs sm:text-sm font-medium">24/7 Support</p>
+                </div>
+              </div>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center">
+                <Link 
+                  to="/signup" 
+                  className="group relative px-8 sm:px-10 py-3.5 sm:py-4 bg-linear-to-r from-amber-500 to-orange-500 text-white font-bold text-lg rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-300 shadow-xl shadow-amber-500/30 hover:shadow-2xl hover:shadow-amber-500/40 hover:scale-105 w-full sm:w-auto flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  </svg>
+                  <span>Create Account</span>
                 </Link>
-                <Link to="/login" className="px-8 py-3 bg-white text-slate-900 font-semibold rounded-xl hover:bg-slate-100 transition-colors shadow-xl shadow-black/20">
-                  Sign In
+
+                <Link 
+                  to="/login" 
+                  className="group relative px-8 sm:px-10 py-3.5 sm:py-4 bg-white/10 text-white font-bold text-lg rounded-xl border-2 border-white/20 hover:border-white/40 hover:bg-white/20 transition-all duration-300 backdrop-blur-sm hover:scale-105 w-full sm:w-auto flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
+                  <span>Sign In</span>
                 </Link>
               </div>
+
+              {/* Additional info */}
+              <p className="text-slate-400 text-sm mt-8">
+                First time here? <Link to="/signup" className="text-amber-400 font-semibold hover:text-amber-300 transition-colors">Sign up in seconds</Link> • Already have an account? <Link to="/login" className="text-amber-400 font-semibold hover:text-amber-300 transition-colors">Log in</Link>
+              </p>
             </div>
           </div>
         </>

@@ -274,7 +274,7 @@ const SellerLogin = () => {
               onClick={() => {
                 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
                 const backendOrigin = apiBaseUrl.replace(/\/api\/?$/, "");
-                window.location.href = `${backendOrigin}/auth/google`;
+                window.location.href = `${backendOrigin}/auth/google?role=seller`;
               }}
               className="w-full py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded-xl flex items-center justify-center space-x-2 transition-all duration-200"
             >

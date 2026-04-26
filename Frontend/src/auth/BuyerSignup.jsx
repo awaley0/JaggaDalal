@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { signupUser } from "../api/auth";
+import { signupUser, sendOTP, verifyOTP } from "../api/auth";
 import { useAuth } from "../context/AuthContext";
 
 const BuyerSignup = () => {
@@ -10,7 +10,6 @@ const BuyerSignup = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      // Buyers go to home, redirect sellers to seller signup
       if (user.role === "seller" || user.role === "admin") {
         navigate("/seller/signup");
       } else if (user.role === "buyer") {
@@ -23,6 +22,7 @@ const BuyerSignup = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    otp: "",
     password: "",
     confirmPassword: "",
     role: "buyer",
@@ -33,8 +33,22 @@ const BuyerSignup = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [otpCountdown, setOtpCountdown] = useState(0);
+  const [otpSent, setOtpSent] = useState(false);
+
+  // Countdown timer for OTP
+  useEffect(() => {
+    let interval;
+    if (otpCountdown > 0) {
+      interval = setInterval(() => {
+        setOtpCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [otpCountdown]);
 
   const validateStep1 = () => {
     const newErrors = {};
@@ -56,6 +70,17 @@ const BuyerSignup = () => {
   };
 
   const validateStep2 = () => {
+    const newErrors = {};
+
+    if (!formData.otp || formData.otp.trim().length !== 6) {
+      newErrors.otp = "Please enter a valid 6-digit OTP";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep3 = () => {
     const newErrors = {};
 
     if (!formData.password) {
@@ -80,13 +105,11 @@ const BuyerSignup = () => {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
-    
-    // Clear current field error
+
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
-    
-    // If editing password fields, clear both password errors for real-time validation
+
     if (name === "password" || name === "confirmPassword") {
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -95,22 +118,101 @@ const BuyerSignup = () => {
         return newErrors;
       });
     }
-    
+
     setApiError("");
+  };
+
+  const handleSendOTP = async (e) => {
+    e.preventDefault();
+
+    if (!validateStep1()) {
+      return;
+    }
+
+    setLoading(true);
+    setApiError("");
+    setSuccessMessage("");
+
+    try {
+      const response = await sendOTP(formData.email, formData.name);
+
+      if (response.data.success) {
+        setSuccessMessage("OTP sent to your email! Check your inbox.");
+        setOtpSent(true);
+        setOtpCountdown(600); // 10 minutes
+        setTimeout(() => {
+          setCurrentStep(2);
+        }, 1000);
+      }
+    } catch (error) {
+      let errorMsg = "Failed to send OTP. Please try again.";
+
+      if (error.response?.data?.msg) {
+        errorMsg = error.response.data.msg;
+      } else if (error.response?.data?.error) {
+        errorMsg = error.response.data.error;
+      } else if (error.message === "Network Error" || !error.response) {
+        errorMsg = "Network error. Make sure the backend server is running.";
+      }
+
+      setApiError(errorMsg);
+      console.error("Send OTP error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+
+    if (!validateStep2()) {
+      return;
+    }
+
+    setLoading(true);
+    setApiError("");
+
+    try {
+      const response = await verifyOTP(formData.email, formData.otp);
+
+      if (response.data.success) {
+        setSuccessMessage("Email verified successfully! Please set your password.");
+        setTimeout(() => {
+          setCurrentStep(3);
+          setSuccessMessage("");
+        }, 1000);
+      }
+    } catch (error) {
+      let errorMsg = "OTP verification failed. Please try again.";
+
+      if (error.response?.data?.msg) {
+        errorMsg = error.response.data.msg;
+      } else if (error.response?.data?.error) {
+        errorMsg = error.response.data.error;
+      }
+
+      setApiError(errorMsg);
+      console.error("Verify OTP error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (currentStep === 1) {
-      if (validateStep1()) {
-        setCurrentStep(2);
-      }
+      await handleSendOTP(e);
       return;
     }
 
     if (currentStep === 2) {
-      if (!validateStep2()) {
+      await handleVerifyOTP(e);
+      return;
+    }
+
+    if (currentStep === 3) {
+      if (!validateStep3()) {
         return;
       }
     }
@@ -129,18 +231,14 @@ const BuyerSignup = () => {
         rememberMe: formData.rememberMe,
       });
 
-      // Handle successful response
       if (response.data.success || response.data.token) {
-        // Verify it's a buyer account
         if (response.data.user?.role !== "buyer") {
           setApiError("Account registration failed. Please try again.");
           return;
         }
 
-        // Use AuthContext login function
         login(response.data.user, response.data.token);
 
-        // Optional: Store remember token
         if (formData.rememberMe && response.data.rememberToken) {
           localStorage.setItem("rememberToken", response.data.rememberToken);
         }
@@ -150,23 +248,18 @@ const BuyerSignup = () => {
         }, 300);
       }
     } catch (error) {
-      // Extract error message from different response formats
       let errorMsg = "Signup failed. Please try again.";
-      
+
       if (error.response?.data?.msg) {
         errorMsg = error.response.data.msg;
       } else if (error.response?.data?.error) {
         errorMsg = error.response.data.error;
       } else if (error.response?.data?.message) {
         errorMsg = error.response.data.message;
-      } else if (error.response?.data?.errors?.length > 0) {
-        errorMsg = error.response.data.errors[0];
       } else if (error.message === "Network Error" || !error.response) {
         errorMsg = "Network error. Make sure the backend server is running on http://localhost:5000";
-      } else if (error.message) {
-        errorMsg = error.message;
       }
-      
+
       setApiError(errorMsg);
       console.error("Signup error:", error);
     } finally {
@@ -199,6 +292,23 @@ const BuyerSignup = () => {
                 currentStep >= 2 ? "bg-blue-600" : "bg-gray-300"
               }`}
             ></div>
+            <div
+              className={`flex-1 h-2 rounded-full transition-all ${
+                currentStep >= 3 ? "bg-blue-600" : "bg-gray-300"
+              }`}
+            ></div>
+          </div>
+
+          {/* Step Indicator */}
+          <div className="text-center mb-6">
+            <p className="text-sm font-medium text-gray-600">
+              Step {currentStep} of 3
+              {currentStep === 2 && otpCountdown > 0 && (
+                <span className="ml-2 text-orange-600">
+                  (OTP expires in {Math.floor(otpCountdown / 60)}:{String(otpCountdown % 60).padStart(2, "0")})
+                </span>
+              )}
+            </p>
           </div>
 
           {/* API Error Message */}
@@ -208,12 +318,18 @@ const BuyerSignup = () => {
             </div>
           )}
 
+          {/* Success Message */}
+          {successMessage && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-green-700 text-sm">{successMessage}</p>
+            </div>
+          )}
+
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Step 1: Account Details */}
+            {/* Step 1: Email & Name */}
             {currentStep === 1 && (
               <>
-                {/* Name Input */}
                 <div>
                   <label className="block text-gray-900 text-sm font-medium mb-2">
                     Full Name
@@ -235,7 +351,6 @@ const BuyerSignup = () => {
                   )}
                 </div>
 
-                {/* Email Input */}
                 <div>
                   <label className="block text-gray-900 text-sm font-medium mb-2">
                     Email Address
@@ -257,20 +372,83 @@ const BuyerSignup = () => {
                   )}
                 </div>
 
-                {/* Next Button */}
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+                  disabled={loading}
+                  className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
                 >
-                  Continue
+                  {loading ? "Sending OTP..." : "Send OTP"}
                 </button>
               </>
             )}
 
-            {/* Step 2: Password & Details */}
+            {/* Step 2: OTP Verification */}
             {currentStep === 2 && (
               <>
-                {/* Password Input */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <p className="text-blue-800 text-sm">
+                    <strong>OTP sent to:</strong> {formData.email}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-gray-900 text-sm font-medium mb-2">
+                    Enter OTP Code
+                  </label>
+                  <input
+                    type="text"
+                    name="otp"
+                    value={formData.otp}
+                    onChange={handleChange}
+                    placeholder="000000"
+                    maxLength="6"
+                    className={`w-full px-4 py-2.5 rounded-lg border text-center text-2xl tracking-widest font-mono ${
+                      errors.otp
+                        ? "border-red-300 focus:border-red-500 focus:ring-red-200"
+                        : "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
+                    } text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-200`}
+                  />
+                  {errors.otp && (
+                    <p className="text-red-600 text-sm mt-1">{errors.otp}</p>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrentStep(1);
+                      setFormData((prev) => ({ ...prev, otp: "" }));
+                      setErrors({});
+                    }}
+                    className="flex-1 py-2.5 bg-gray-200 text-gray-900 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading || otpCountdown === 0}
+                    className="flex-1 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+                  >
+                    {loading ? "Verifying..." : "Verify OTP"}
+                  </button>
+                </div>
+
+                {otpCountdown === 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleSendOTP(e)}
+                    className="w-full py-2 text-blue-600 font-semibold hover:text-blue-700 text-sm"
+                  >
+                    Didn't receive OTP? Resend
+                  </button>
+                )}
+              </>
+            )}
+
+            {/* Step 3: Password & Details */}
+            {currentStep === 3 && (
+              <>
                 <div>
                   <label className="block text-gray-900 text-sm font-medium mb-2">
                     Password
@@ -310,7 +488,6 @@ const BuyerSignup = () => {
                   )}
                 </div>
 
-                {/* Confirm Password Input */}
                 <div>
                   <label className="block text-gray-900 text-sm font-medium mb-2">
                     Confirm Password
@@ -350,7 +527,6 @@ const BuyerSignup = () => {
                   )}
                 </div>
 
-                {/* Remember Me */}
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -362,11 +538,13 @@ const BuyerSignup = () => {
                   <span className="text-gray-700 text-sm">Remember me on this device</span>
                 </label>
 
-                {/* Button Group */}
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setCurrentStep(1)}
+                    onClick={() => {
+                      setCurrentStep(2);
+                      setErrors({});
+                    }}
                     className="flex-1 py-2.5 bg-gray-200 text-gray-900 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
                   >
                     Back
@@ -385,7 +563,7 @@ const BuyerSignup = () => {
                         <span>Creating...</span>
                       </span>
                     ) : (
-                      "Sign Up"
+                      "Create Account"
                     )}
                   </button>
                 </div>
@@ -398,18 +576,18 @@ const BuyerSignup = () => {
             Already have an account?{" "}
             <Link
               to="/buyer/login"
-              className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+              className="text-blue-600 font-semibold hover:text-blue-700 transition-colors"
             >
-              Sign in
+              Sign In
             </Link>
           </p>
 
-          {/* Switch to Seller */}
-          <p className="text-center mt-4 text-gray-600 text-sm">
+          {/* Seller Signup Link */}
+          <p className="text-center mt-2 text-gray-700">
             Are you a seller?{" "}
             <Link
               to="/seller/signup"
-              className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+              className="text-blue-600 font-semibold hover:text-blue-700 transition-colors"
             >
               Sign up as seller
             </Link>
