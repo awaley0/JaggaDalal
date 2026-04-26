@@ -7,6 +7,7 @@ import AdminRoute from "./components/AdminRoute";
 import SellerRoute from "./components/SellerRoute";
 import BuyerRoute from "./components/BuyerRoute";
 import Navbar from "./components/Navbar";
+import ScrollToTop from "./components/ScrollToTop";
 import Home from "./pages/Home";
 import Buy from "./pages/Buy";
 import Rent from "./pages/Rent";
@@ -178,6 +179,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <ScrollToTop />
         <Navbar />
         <AppRoutes />
       </AuthProvider>

@@ -8,13 +8,13 @@ import { sendMessageToAdmin } from "../api/chatApi";
 import PropertyDetailsMap from "../components/Map/PropertyDetailsMap";
 import { addFavorite, removeFavorite, isFavorited } from "../api/favoriteApi";
 import { formatRs } from "../utils/currency";
+import PropertyDetailsMediaSection from "../components/3D/PropertyDetailsMediaSection";
 
 const PropertyDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const [property, setProperty] = useState(null);
-  const [selectedImage, setSelectedImage] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
@@ -378,28 +378,25 @@ const PropertyDetails = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* Left: Images and Details */}
           <div className="lg:col-span-2">
-            {/* Main Image */}
-            <div className="relative bg-gray-300 rounded-lg overflow-hidden mb-4 h-96">
-              <img
-                src={property.images?.[selectedImage] || property.image || "https://via.placeholder.com/800x400?text=No+Image"}
-                alt={property.title}
-                onError={(e) => {
-                  e.target.src = "https://via.placeholder.com/800x400?text=No+Image";
-                }}
-                className="w-full h-full object-cover"
-              />
+            {/* Media Gallery with 360° View Support */}
+            <div className="mb-6">
+              <PropertyDetailsMediaSection property={property} />
+            </div>
+
+            {/* Add Favorite Button */}
+            <div className="mb-6">
               <button
                 onClick={toggleFavorite}
                 disabled={favLoading}
-                className={`absolute top-4 right-4 p-3 rounded-full transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`w-full py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                   isFavorite
                     ? "bg-red-600 text-white hover:bg-red-700"
-                    : "bg-white text-gray-600 hover:bg-red-50 hover:text-red-600"
+                    : "bg-white border-2 border-red-300 text-red-600 hover:bg-red-50"
                 }`}
                 title={isFavorite ? "Remove from favorites" : "Add to favorites"}
               >
                 <svg
-                  className={`w-6 h-6 transition-transform ${favLoading ? "animate-pulse" : ""}`}
+                  className={`w-5 h-5`}
                   fill={isFavorite ? "currentColor" : "none"}
                   stroke="currentColor"
                   strokeWidth={isFavorite ? 0 : 2}
@@ -411,41 +408,9 @@ const PropertyDetails = () => {
                     d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
                   />
                 </svg>
+                {isFavorite ? "Remove from Favorites" : "Add to Favorites"}
               </button>
-
-              {/* Type Badge */}
-              {property.featured && (
-                <span className="absolute top-4 left-4 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-                  Featured
-                </span>
-              )}
             </div>
-
-            {/* Gallery Thumbnails */}
-            {property.images && property.images.length > 0 && (
-              <div className="grid grid-cols-4 gap-2 mb-6">
-                {property.images.slice(0, 4).map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedImage(idx)}
-                    className={`h-20 rounded-lg overflow-hidden border-2 transition-all ${
-                      selectedImage === idx
-                        ? "border-blue-600"
-                        : "border-gray-300 hover:border-gray-400"
-                    }`}
-                  >
-                    <img
-                      src={img}
-                      alt={`Gallery ${idx}`}
-                      onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/100x100?text=No+Image";
-                      }}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
 
             {/* Property Details */}
             <div className="bg-white rounded-2xl border border-slate-200 p-7 mb-6 shadow-sm">

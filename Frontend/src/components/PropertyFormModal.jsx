@@ -3,6 +3,7 @@ import axios from "../api/axios";
 import LocationPicker from "./LocationPicker/LocationPicker";
 
 const MAX_IMAGES = 5;
+const MAX_PANORAMA_IMAGES = 6;
 
 const PropertyFormModal = ({ isOpen, onClose, onPropertyAdded, editingProperty }) => {
   const [loading, setLoading] = useState(false);
@@ -34,6 +35,12 @@ const PropertyFormModal = ({ isOpen, onClose, onPropertyAdded, editingProperty }
   const [selectedImages, setSelectedImages] = useState([]);
   const [imagePreview, setImagePreview] = useState([]);
   const imageInputRef = useRef(null);
+  
+  // Panorama image states
+  const [selectedPanoramaImages, setSelectedPanoramaImages] = useState([]);
+  const [panoramaPreview, setPanoramaPreview] = useState([]);
+  const [panoramaLabels, setPanoramaLabels] = useState({});
+  const panoramaInputRef = useRef(null);
 
   useEffect(() => {
     if (editingProperty) {
@@ -129,6 +136,63 @@ const PropertyFormModal = ({ isOpen, onClose, onPropertyAdded, editingProperty }
     imageInputRef.current?.click();
   };
 
+  const handleOpenPanoramaPicker = () => {
+    panoramaInputRef.current?.click();
+  };
+
+  const handlePanoramaImageChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const availableSlots = Math.max(MAX_PANORAMA_IMAGES - panoramaPreview.length, 0);
+    const acceptedFiles = files.slice(0, availableSlots);
+
+    if (!acceptedFiles.length) {
+      setError(`You can upload up to ${MAX_PANORAMA_IMAGES} panorama images only.`);
+      e.target.value = "";
+      return;
+    }
+
+    setSelectedPanoramaImages((prev) => [...prev, ...acceptedFiles]);
+
+    const previews = acceptedFiles.map((file) => URL.createObjectURL(file));
+    setPanoramaPreview((prev) => [...prev, ...previews]);
+
+    if (files.length > acceptedFiles.length) {
+      setError(`Only ${MAX_PANORAMA_IMAGES} panorama images are allowed. Extra files were skipped.`);
+    } else {
+      setError("");
+    }
+
+    e.target.value = "";
+  };
+
+  const removePanoramaImage = (index) => {
+    const isExistingImage = typeof panoramaPreview[index] === "string" && panoramaPreview[index].startsWith("http");
+    
+    if (!isExistingImage) {
+      const existingImagesCount = panoramaPreview.filter(p => typeof p === "string" && p.startsWith("http")).length;
+      const fileIndex = index - existingImagesCount;
+      const newImages = selectedPanoramaImages.filter((_, i) => i !== fileIndex);
+      setSelectedPanoramaImages(newImages);
+    }
+    
+    const newPreviews = panoramaPreview.filter((_, i) => i !== index);
+    setPanoramaPreview(newPreviews);
+    
+    // Remove label for this image
+    const newLabels = { ...panoramaLabels };
+    delete newLabels[index];
+    setPanoramaLabels(newLabels);
+  };
+
+  const setPanoramaLabel = (index, label) => {
+    setPanoramaLabels((prev) => ({
+      ...prev,
+      [index]: label,
+    }));
+  };
+
   const removeImage = (index) => {
     // If it's a new file (doesn't start with http), remove from selectedImages
     const isExistingImage = typeof imagePreview[index] === "string" && imagePreview[index].startsWith("http");
@@ -151,10 +215,36 @@ const PropertyFormModal = ({ isOpen, onClose, onPropertyAdded, editingProperty }
     setError("");
 
     try {
-      const token = localStorage.getItem("token");
+      // Validate required fields
+      if (!formData.title.trim()) {
+        setError("Property title is required");
+        setLoading(false);
+        return;
+      }
+      if (!formData.description.trim()) {
+        setError("Property description is required");
+        setLoading(false);
+        return;
+      }
+      if (!formData.price || parseFloat(formData.price) <= 0) {
+        setError("Valid property price is required");
+        setLoading(false);
+        return;
+      }
+      if (!formData.propertyType) {
+        setError("Property type is required");
+        setLoading(false);
+        return;
+      }
+      if (!formData.listingType) {
+        setError("Listing type (sell/rent) is required");
+        setLoading(false);
+        return;
+      }
+
       const formDataToSend = new FormData();
-      formDataToSend.append("title", formData.title);
-      formDataToSend.append("description", formData.description);
+      formDataToSend.append("title", formData.title.trim());
+      formDataToSend.append("description", formData.description.trim());
       formDataToSend.append("price", parseFloat(formData.price));
       formDataToSend.append("location", locationData.address || formData.location);
       formDataToSend.append("address", locationData.address);
@@ -171,36 +261,37 @@ const PropertyFormModal = ({ isOpen, onClose, onPropertyAdded, editingProperty }
       formDataToSend.append("squareFeet", parseInt(formData.squareFeet) || 0);
       formDataToSend.append("status", formData.status);
       
+      // Add new images
       selectedImages.forEach((image) => {
         formDataToSend.append("images", image);
       });
 
-      // Also append existing images if editing
-      if (editingProperty) {
-        const existingImages = imagePreview.filter(p => typeof p === "string" && p.startsWith("http"));
-        existingImages.forEach((img) => {
-          formDataToSend.append("existingImages", img); // Depends on backend implementation, but won't hurt
-        });
-      }
+      // Add panorama images with labels
+      selectedPanoramaImages.forEach((image, index) => {
+        formDataToSend.append("panoramaImages", image);
+        const label = panoramaLabels[index] || `Room ${index + 1}`;
+        formDataToSend.append("panoramaLabels", label);
+      });
 
       let response;
       if (editingProperty) {
-        response = await axios.put(`/properties/${editingProperty._id}`, formDataToSend, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        response = await axios.put(`/properties/${editingProperty._id}`, formDataToSend);
       } else {
-        response = await axios.post("/properties", formDataToSend, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        response = await axios.post("/properties", formDataToSend);
       }
 
-      if (onPropertyAdded) {
-        onPropertyAdded(response.data.data || response.data);
+      if (response.data?.success || response.status === 201) {
+        if (onPropertyAdded) {
+          onPropertyAdded(response.data.data || response.data);
+        }
+        onClose();
+      } else {
+        setError(response.data?.message || response.data?.error || "Failed to save property");
       }
-      onClose();
     } catch (err) {
       console.error("Error saving property:", err);
-      setError(err.response?.data?.error || err.response?.data?.message || "Failed to save property");
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message || "Failed to save property";
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -401,6 +492,75 @@ const PropertyFormModal = ({ isOpen, onClose, onPropertyAdded, editingProperty }
                         className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
                       >
                         ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 360° Panorama Images Upload */}
+            <div className="col-span-2 text-left border-t pt-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                🔄 360° Panorama Images (Up to {MAX_PANORAMA_IMAGES})
+              </label>
+
+              <input
+                ref={panoramaInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handlePanoramaImageChange}
+                className="hidden"
+              />
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleOpenPanoramaPicker}
+                  disabled={panoramaPreview.length >= MAX_PANORAMA_IMAGES}
+                  className="px-4 py-2 border rounded-lg bg-white text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add Panorama Images
+                </button>
+
+                <span className="text-sm text-gray-600">
+                  {panoramaPreview.length}/{MAX_PANORAMA_IMAGES} selected
+                </span>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-1">Upload high-quality equirectangular panoramic images for 360° view</p>
+            </div>
+
+            {/* Panorama Preview */}
+            {panoramaPreview.length > 0 && (
+              <div className="col-span-2 text-left">
+                <p className="text-sm font-semibold text-gray-700 mb-2">
+                  Panorama Images ({panoramaPreview.length})
+                </p>
+                <div className="space-y-3">
+                  {panoramaPreview.map((preview, index) => (
+                    <div key={index} className="flex gap-3 items-start p-3 bg-gray-50 rounded-lg">
+                      <img
+                        src={preview}
+                        alt={`Panorama ${index}`}
+                        className="w-24 h-24 object-cover rounded-lg flex-shrink-0"
+                      />
+                      <div className="flex-grow">
+                        <input
+                          type="text"
+                          placeholder={`Room name (e.g., Living Room, Kitchen)`}
+                          value={panoramaLabels[index] || ""}
+                          onChange={(e) => setPanoramaLabel(index, e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removePanoramaImage(index)}
+                        className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 flex-shrink-0"
+                      >
+                        Remove
                       </button>
                     </div>
                   ))}
