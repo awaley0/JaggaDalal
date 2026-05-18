@@ -8,6 +8,7 @@ import {
   getAllProperties,
   getRecommendedProperties,
   getSellerProperties,
+  getSellerDashboardStats,
 } from "../api/propertyApi";
 import { saveUserSearch } from "../api/auth";
 import PropertyFormModal from "../components/PropertyFormModal";
@@ -39,6 +40,17 @@ const Home = () => {
   const [buyerSearchResults, setBuyerSearchResults] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [sellerListings, setSellerListings] = useState([]);
+  const [sellerDashboardStats, setSellerDashboardStats] = useState({
+    totalProperties: 0,
+    activeListings: 0,
+    soldOrRented: 0,
+    pendingBookings: 0,
+    confirmedBookings: 0,
+    completedBookings: 0,
+    totalRevenue: 0,
+    totalGrossRevenue: 0,
+    adminCommissionPaid: 0,
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -72,12 +84,24 @@ const Home = () => {
         }
 
         if (user.role === "seller") {
-          const [sellerBookingsRes, sellerPropertiesRes] = await Promise.all([
+          const [sellerBookingsRes, sellerPropertiesRes, statsRes] = await Promise.all([
             getSellerBookings(),
             getSellerProperties(),
+            getSellerDashboardStats(),
           ]);
           setBookings(sellerBookingsRes?.bookings || []);
           setSellerListings(toArray(sellerPropertiesRes));
+          setSellerDashboardStats(statsRes?.data || {
+            totalProperties: 0,
+            activeListings: 0,
+            soldOrRented: 0,
+            pendingBookings: 0,
+            confirmedBookings: 0,
+            completedBookings: 0,
+            totalRevenue: 0,
+            totalGrossRevenue: 0,
+            adminCommissionPaid: 0,
+          });
         }
       } catch (error) {
         console.error("Failed to fetch role specific data:", error);
@@ -128,13 +152,6 @@ const Home = () => {
     );
   }, [filteredProperties, selectedType]);
 
-  const avgRating = useMemo(() => {
-    const rated = allProperties.filter((p) => Number(p.rating) > 0);
-    if (rated.length === 0) return "0.0";
-    const sum = rated.reduce((acc, p) => acc + Number(p.rating || 0), 0);
-    return (sum / rated.length).toFixed(1);
-  }, [allProperties]);
-
   const locationsCount = useMemo(
     () => new Set(allProperties.map((p) => (p.location || "").trim()).filter(Boolean)).size,
     [allProperties]
@@ -148,11 +165,8 @@ const Home = () => {
   }, [recommendedProperties, allProperties]);
 
   const sellerRevenue = useMemo(
-    () =>
-      bookings
-        .filter((b) => b.status === "confirmed" || b.status === "completed")
-        .reduce((sum, b) => sum + Number(b.price || 0), 0),
-    [bookings]
+    () => sellerDashboardStats.totalRevenue || 0,
+    [sellerDashboardStats]
   );
 
   const sellerReviewCount = useMemo(
@@ -194,7 +208,7 @@ const Home = () => {
           </div>
 
           <div className="bg-linear-to-b from-white to-slate-50 border-b border-slate-200 py-8">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
                 <p className="text-3xl font-semibold text-slate-900">{allProperties.length}</p>
                 <p className="text-sm text-slate-600 mt-1">Available Properties</p>
@@ -206,10 +220,6 @@ const Home = () => {
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
                 <p className="text-3xl font-semibold text-slate-900">{locationsCount}</p>
                 <p className="text-sm text-slate-600 mt-1">Locations</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-3xl font-semibold text-slate-900">{avgRating}<span className="text-amber-500">★</span></p>
-                <p className="text-sm text-slate-600 mt-1">Average Rating</p>
               </div>
             </div>
           </div>
@@ -287,11 +297,11 @@ const Home = () => {
           <div className="bg-linear-to-b from-white to-slate-50 border-b border-slate-200 py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="rounded-2xl bg-white border border-slate-200 p-4 text-center shadow-sm">
-                <p className="text-2xl font-bold text-green-600">{sellerListings.length}</p>
+                <p className="text-2xl font-bold text-green-600">{sellerDashboardStats.activeListings || 0}</p>
                 <p className="text-sm text-slate-600 mt-1">Active Listings</p>
               </div>
               <div className="rounded-2xl bg-white border border-slate-200 p-4 text-center shadow-sm">
-                <p className="text-2xl font-bold text-blue-600">{bookings.length}</p>
+                <p className="text-2xl font-bold text-blue-600">{sellerDashboardStats.pendingBookings + sellerDashboardStats.confirmedBookings || 0}</p>
                 <p className="text-sm text-slate-600 mt-1">Booking Requests</p>
               </div>
               <div className="rounded-2xl bg-white border border-slate-200 p-4 text-center shadow-sm">
@@ -360,7 +370,7 @@ const Home = () => {
                 <SearchBar onSearch={handleSearch} />
               </div>
 
-              <div className="grid grid-cols-3 gap-4 sm:gap-8 py-8">
+              <div className="grid grid-cols-2 gap-4 sm:gap-8 py-8">
                 <div className="text-center">
                   <p className="text-3xl sm:text-4xl font-bold text-amber-500">{allProperties.length}</p>
                   <p className="text-slate-300 text-sm sm:text-base mt-2">Properties Listed</p>
@@ -368,10 +378,6 @@ const Home = () => {
                 <div className="text-center">
                   <p className="text-3xl sm:text-4xl font-bold text-amber-500">{locationsCount}</p>
                   <p className="text-slate-300 text-sm sm:text-base mt-2">Locations</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-3xl sm:text-4xl font-bold text-amber-500">{avgRating}★</p>
-                  <p className="text-slate-300 text-sm sm:text-base mt-2">Avg Rating</p>
                 </div>
               </div>
             </div>

@@ -36,6 +36,13 @@ const SellerDashboard = () => {
   // Fetch seller's properties
   useEffect(() => {
     fetchDashboardData();
+    
+    // Refetch stats every 30 seconds to keep data fresh
+    const interval = setInterval(() => {
+      fetchDashboardData();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const fetchDashboardData = async () => {

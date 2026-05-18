@@ -142,3 +142,42 @@ export const mockConfirmEsewaPayment = async (bookingId) => {
     throw error;
   }
 };
+
+/**
+ * Get all booking requests for a property (seller only)
+ */
+export const getPropertyBookingRequests = async (propertyId) => {
+  try {
+    const response = await axiosInstance.get(`/bookings/property/${propertyId}/requests`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching booking requests:", error);
+    throw error;
+  }
+};
+
+/**
+ * Accept a booking request (seller)
+ */
+export const acceptBookingRequest = async (bookingId) => {
+  try {
+    const response = await axiosInstance.post(`/bookings/${bookingId}/accept`);
+    return response.data;
+  } catch (error) {
+    console.error("Error accepting booking request:", error);
+    throw error;
+  }
+};
+
+/**
+ * Reject a booking request (seller)
+ */
+export const rejectBookingRequest = async (bookingId) => {
+  try {
+    const response = await axiosInstance.post(`/bookings/${bookingId}/reject`);
+    return response.data;
+  } catch (error) {
+    console.error("Error rejecting booking request:", error);
+    throw error;
+  }
+};

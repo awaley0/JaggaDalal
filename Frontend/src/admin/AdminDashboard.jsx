@@ -116,6 +116,13 @@ const AdminDashboard = () => {
     };
 
     fetchDashboardData();
+    
+    // Refetch stats every 30 seconds to keep data fresh
+    const interval = setInterval(() => {
+      fetchDashboardData();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   // Fetch properties for management
@@ -481,28 +488,43 @@ const AdminDashboard = () => {
                     <p className="text-slate-500">No eligible sold/rented approved properties found.</p>
                   ) : (
                     <table className="w-full text-sm">
-                      <thead className="text-left bg-slate-50 border-y border-slate-200">
+                      <thead className="text-left bg-gradient-to-r from-slate-900 to-slate-800 text-white border-y border-slate-200">
                         <tr>
-                          <th className="px-3 py-2">Property</th>
-                          <th className="px-3 py-2">Seller</th>
-                          <th className="px-3 py-2">Status</th>
-                          <th className="px-3 py-2">Gross</th>
-                          <th className="px-3 py-2">Admin 3%</th>
-                          <th className="px-3 py-2">Seller 97%</th>
+                          <th className="px-3 py-3 font-semibold">Property</th>
+                          <th className="px-3 py-3 font-semibold">Seller</th>
+                          <th className="px-3 py-3 font-semibold">Status</th>
+                          <th className="px-3 py-3 font-semibold">Sold Date</th>
+                          <th className="px-3 py-3 font-semibold">Gross</th>
+                          <th className="px-3 py-3 font-semibold">Admin 3%</th>
+                          <th className="px-3 py-3 font-semibold">Seller 97%</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {adminRevenueReport.map((item) => (
-                          <tr key={item.propertyId} className="border-b border-slate-100">
-                            <td className="px-3 py-2">
+                        {adminRevenueReport.map((item, index) => (
+                          <tr key={item.propertyId} className={`border-b border-slate-100 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50 transition-colors`}>
+                            <td className="px-3 py-3">
                               <p className="font-medium text-slate-900">{item.title}</p>
                               <p className="text-xs text-slate-500">{item.location || "N/A"}</p>
                             </td>
-                            <td className="px-3 py-2">{item.seller?.name || "N/A"}</td>
-                            <td className="px-3 py-2 capitalize">{item.status}</td>
-                            <td className="px-3 py-2">{formatRs(item.grossAmount || 0)}</td>
-                            <td className="px-3 py-2 text-emerald-700 font-semibold">{formatRs(item.adminCommission || 0)}</td>
-                            <td className="px-3 py-2 text-blue-700 font-semibold">{formatRs(item.sellerNet || 0)}</td>
+                            <td className="px-3 py-3 text-slate-700">{item.seller?.name || "N/A"}</td>
+                            <td className="px-3 py-3">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${
+                                item.status === 'sold' 
+                                  ? 'bg-blue-100 text-blue-800' 
+                                  : 'bg-emerald-100 text-emerald-800'
+                              }`}>
+                                {item.status}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 text-slate-700">
+                              <div className="text-sm">
+                                <p className="font-medium">{item.closedAt ? new Date(item.closedAt).toLocaleDateString() : 'N/A'}</p>
+                                <p className="text-xs text-slate-500">{item.closedAt ? new Date(item.closedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</p>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 font-medium text-slate-900">{formatRs(item.grossAmount || 0)}</td>
+                            <td className="px-3 py-3 text-emerald-700 font-bold">{formatRs(item.adminCommission || 0)}</td>
+                            <td className="px-3 py-3 text-blue-700 font-bold">{formatRs(item.sellerNet || 0)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -516,133 +538,208 @@ const AdminDashboard = () => {
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* Monthly Revenue Chart */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Monthly Revenue & Users</h2>
+            <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl border border-slate-200 p-6 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">Monthly Revenue & Users</h2>
+                  <p className="text-sm text-slate-600 mt-1">Last 6 months performance</p>
+                </div>
+                <div className="p-3 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+              </div>
               {monthlyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={320}>
                   <BarChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                    <XAxis dataKey="month" stroke="#64748B" />
-                    <YAxis stroke="#64748B" />
+                    <defs>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.2}/>
+                      </linearGradient>
+                      <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#10B981" stopOpacity={0.2}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                    <XAxis dataKey="month" stroke="#94A3B8" style={{fontSize: '12px'}} />
+                    <YAxis stroke="#94A3B8" style={{fontSize: '12px'}} />
                     <Tooltip
-                      contentStyle={{ backgroundColor: "#F1F5F9", border: "1px solid #CBD5E1" }}
+                      contentStyle={{ backgroundColor: "#1E293B", border: "2px solid #3B82F6", borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
+                      labelStyle={{ color: "#93C5FD" }}
+                      formatter={(value) => `₨${value}K`}
                     />
-                    <Legend />
+                    <Legend wrapperStyle={{paddingTop: '20px'}} />
                     <Bar
                       dataKey="revenue"
-                      fill="#0f172a"
+                      fill="url(#colorRevenue)"
                       name="Revenue (Rs K)"
-                      radius={[8, 8, 0, 0]}
+                      radius={[12, 12, 0, 0]}
+                      isAnimationActive={true}
                     />
                     <Bar
                       dataKey="users"
-                      fill="#f59e0b"
+                      fill="url(#colorUsers)"
                       name="Users"
-                      radius={[8, 8, 0, 0]}
+                      radius={[12, 12, 0, 0]}
+                      isAnimationActive={true}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-slate-500 text-center py-8">No monthly data available</p>
+                <p className="text-slate-500 text-center py-12">No monthly data available</p>
               )}
             </div>
 
             {/* Property Types Distribution */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900 mb-4">Properties by Type</h2>
+            <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl border border-slate-200 p-6 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">Properties by Type</h2>
+                  <p className="text-sm text-slate-600 mt-1">Distribution across listings</p>
+                </div>
+                <div className="p-3 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12a4 4 0 11-8 0 4 4 0 018 0zm0 0a4 4 0 118 0 4 4 0 01-8 0zm7-4a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                </div>
+              </div>
               {propertyTypesData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
                     <Pie
                       data={propertyTypesData}
                       cx="50%"
                       cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name}: ${value}`}
-                      outerRadius={80}
+                      labelLine={true}
+                      label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                      outerRadius={100}
                       fill="#8884d8"
                       dataKey="value"
+                      isAnimationActive={true}
                     >
                       {propertyTypesData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "#1E293B", border: "2px solid #F97316", borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
+                      labelStyle={{ color: "#FDBA74" }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-slate-500 text-center py-8">No property data available</p>
+                <p className="text-slate-500 text-center py-12">No property data available</p>
               )}
             </div>
           </div>
 
           {/* User Activity Chart */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm mb-8">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">Weekly User Activity</h2>
+          <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl border border-slate-200 p-6 shadow-lg hover:shadow-xl transition-shadow mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Weekly User Activity</h2>
+                <p className="text-sm text-slate-600 mt-1">User engagement over last 4 weeks</p>
+              </div>
+              <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+            </div>
             {weeklyActivity.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={320}>
                 <LineChart data={weeklyActivity}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                  <XAxis dataKey="week" stroke="#64748B" />
-                  <YAxis stroke="#64748B" />
+                  <defs>
+                    <linearGradient id="colorSignups" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.1}/>
+                    </linearGradient>
+                    <linearGradient id="colorLogins" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#EC4899" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#EC4899" stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                  <XAxis dataKey="week" stroke="#94A3B8" style={{fontSize: '12px'}} />
+                  <YAxis stroke="#94A3B8" style={{fontSize: '12px'}} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: "#F1F5F9", border: "1px solid #CBD5E1" }}
+                    contentStyle={{ backgroundColor: "#1E293B", border: "2px solid #8B5CF6", borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
+                    labelStyle={{ color: "#D8B4FE" }}
                   />
-                  <Legend />
+                  <Legend wrapperStyle={{paddingTop: '20px'}} />
                   <Line
                     type="monotone"
                     dataKey="signups"
-                    stroke="#0f172a"
-                    strokeWidth={2}
-                    dot={{ fill: "#0f172a", r: 5 }}
-                    activeDot={{ r: 7 }}
+                    stroke="#8B5CF6"
+                    strokeWidth={3}
+                    dot={{ fill: "#8B5CF6", r: 6, strokeWidth: 2 }}
+                    activeDot={{ r: 8 }}
                     name="New Signups"
+                    isAnimationActive={true}
+                    animationDuration={800}
                   />
                   <Line
                     type="monotone"
                     dataKey="logins"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    dot={{ fill: "#f59e0b", r: 5 }}
-                    activeDot={{ r: 7 }}
+                    stroke="#EC4899"
+                    strokeWidth={3}
+                    dot={{ fill: "#EC4899", r: 6, strokeWidth: 2 }}
+                    activeDot={{ r: 8 }}
                     name="Total Logins"
+                    isAnimationActive={true}
+                    animationDuration={800}
                   />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-slate-500 text-center py-8">No activity data available</p>
+              <p className="text-slate-500 text-center py-12">No activity data available</p>
             )}
           </div>
 
           {/* Recent Activity */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900 mb-4">Recent Properties</h2>
+            <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl border border-slate-200 p-6 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">Recent Properties</h2>
+                  <p className="text-xs text-slate-600 mt-1">Latest listings added</p>
+                </div>
+                <div className="p-2 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-3m0 0l7-4 7 4M5 9v10a1 1 0 001 1h12a1 1 0 001-1V9m-9 11l4-4m0 0l4 4m-4-4v4" />
+                  </svg>
+                </div>
+              </div>
               <div className="space-y-3">
                 {recentProperties.length > 0 ? (
                   recentProperties.map((property) => (
                     <div
                       key={property._id}
-                      className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors"
+                      className="flex items-center justify-between p-3 hover:bg-amber-50 rounded-xl transition-all border border-transparent hover:border-amber-200"
                     >
                       <div className="flex items-center space-x-3 flex-1 min-w-0">
-                        <div className="w-10 h-10 bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg flex items-center justify-center text-amber-400 font-bold flex-shrink-0">
+                        <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0 shadow-md">
                           P
                         </div>
                         <div className="min-w-0">
-                          <p className="font-medium text-slate-900 truncate">{property.title}</p>
-                          <p className="text-sm text-slate-600">
+                          <p className="font-semibold text-slate-900 truncate">{property.title}</p>
+                          <p className="text-xs text-slate-500">
                             {new Date(property.createdAt).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
                       <div className="text-right ml-2">
-                        <p className="font-semibold text-slate-900">{formatRs(property.price)}</p>
+                        <p className="font-bold text-slate-900">{formatRs(property.price)}</p>
                         <span
-                          className={`text-xs px-2 py-1 rounded ${
+                          className={`text-xs px-2 py-1 rounded-full font-semibold ${
                             property.status === "available"
                               ? "bg-emerald-100 text-emerald-700"
-                              : "bg-gray-100 text-gray-700"
+                              : property.status === "sold"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-slate-100 text-slate-700"
                           }`}
                         >
                           {property.status}
@@ -656,27 +753,41 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900 mb-4">Recent Users</h2>
+            <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl border border-slate-200 p-6 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">Recent Users</h2>
+                  <p className="text-xs text-slate-600 mt-1">Latest registrations</p>
+                </div>
+                <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292m15 0h2m-2 0h-5m5-5a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
               <div className="space-y-3">
                 {recentUsers.length > 0 ? (
                   recentUsers.map((u) => (
                     <div
                       key={u._id}
-                      className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors"
+                      className="flex items-center justify-between p-3 hover:bg-blue-50 rounded-xl transition-all border border-transparent hover:border-blue-200"
                     >
                       <div className="flex items-center space-x-3 flex-1">
-                        <div className="w-10 h-10 bg-gradient-to-br from-slate-900 to-slate-700 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-md">
                           {u.name?.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-medium text-slate-900">{u.name}</p>
+                          <p className="font-semibold text-slate-900">{u.name}</p>
                           <p className="text-sm text-slate-600">
                             {new Date(u.createdAt).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
-                      <span className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded capitalize">
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-semibold capitalize ${
+                        u.role === 'admin' ? 'bg-red-100 text-red-700' :
+                        u.role === 'seller' ? 'bg-orange-100 text-orange-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
                         {u.role}
                       </span>
                     </div>

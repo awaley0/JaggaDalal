@@ -131,3 +131,16 @@ export const getRecommendedProperties = async () => {
     throw error;
   }
 };
+
+/**
+ * Fetch seller dashboard statistics (requires authentication as seller)
+ */
+export const getSellerDashboardStats = async () => {
+  try {
+    const response = await axiosInstance.get("/properties/seller/dashboard-stats");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching seller dashboard stats:", error);
+    throw error;
+  }
+};

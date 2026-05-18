@@ -9,6 +9,7 @@ import PropertyDetailsMap from "../components/Map/PropertyDetailsMap";
 import { addFavorite, removeFavorite, isFavorited } from "../api/favoriteApi";
 import { formatRs } from "../utils/currency";
 import PropertyDetailsMediaSection from "../components/3D/PropertyDetailsMediaSection";
+import BookingRequestsList from "../components/BookingRequestsList";
 
 const PropertyDetails = () => {
   const { id } = useParams();
@@ -21,6 +22,8 @@ const PropertyDetails = () => {
   const [contactLoading, setContactLoading] = useState(false);
   const [adminMessageLoading, setAdminMessageLoading] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showBookingRequestsModal, setShowBookingRequestsModal] = useState(false);
+  const [inquiryStep, setInquiryStep] = useState(0); // 0: Schedule Booking, 1: Inquire
   const [bookingLoading, setBookingLoading] = useState(false);
   const [fallbackPayLoading, setFallbackPayLoading] = useState(false);
   const [bookingError, setBookingError] = useState("");
@@ -137,10 +140,12 @@ const PropertyDetails = () => {
         message: "",
       }));
       setShowContactForm(false);
+      setInquiryStep(0); // Reset inquiry step back to 0
       navigate(`/chat?recipientId=${encodeURIComponent(sellerId)}&recipientName=${encodeURIComponent(sellerName)}&propertyId=${encodeURIComponent(property._id || property.id)}`);
     } catch (error) {
       console.error("Contact inquiry error:", error);
       alert(error.response?.data?.error || "Failed to send your inquiry. Please try again.");
+      setInquiryStep(0); // Reset on error
     } finally {
       setContactLoading(false);
     }
@@ -195,6 +200,13 @@ const PropertyDetails = () => {
     e.preventDefault();
     if (!isAuthenticated) {
       navigate("/login");
+      return;
+    }
+
+    // For sales properties, just close the modal and show Inquire button
+    if (listingType === "sell") {
+      setShowBookingModal(false);
+      setBookingError("");
       return;
     }
 
@@ -622,14 +634,31 @@ const PropertyDetails = () => {
                           if (!isAvailable) return;
                           if (!isAuthenticated) {
                             navigate("/login");
-                          } else {
-                            setShowContactForm(true);
+                          } else if (inquiryStep === 0) {
+                            // Step 0: Schedule Booking → Open booking modal
+                            setInquiryStep(1);
+                            setShowBookingModal(true);
+                          } else if (inquiryStep === 1) {
+                            // Step 1: Inquire → Submit form
+                            const form = document.querySelector("form");
+                            if (form) {
+                              form.dispatchEvent(
+                                new Event("submit", {
+                                  bubbles: true,
+                                  cancelable: true,
+                                })
+                              );
+                            }
                           }
                         }}
                         disabled={!isAvailable}
                         className="block w-full py-3 text-center bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-all shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
                       >
-                        {isAvailable ? "Inquire Now" : `Unavailable (${availabilityLabel})`}
+                        {!isAvailable
+                          ? `Unavailable (${availabilityLabel})`
+                          : inquiryStep === 0
+                          ? "Schedule Booking"
+                          : "Inquire"}
                       </button>
                     )}
 
@@ -687,7 +716,7 @@ const PropertyDetails = () => {
                           ✏️ Manage This Listing
                         </button>
                         <button
-                          onClick={() => navigate('/admin/bookings')}
+                          onClick={() => setShowBookingRequestsModal(true)}
                           className="block w-full py-2.5 text-center bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-all"
                         >
                           📋 View Booking Requests
@@ -722,6 +751,19 @@ const PropertyDetails = () => {
               {/* Contact Form */}
               {showContactForm && shouldShowBuyerActions && (
                 <form onSubmit={handleContactSubmit} className="space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-slate-900">Send Inquiry</h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowContactForm(false);
+                        setInquiryStep(0);
+                      }}
+                      className="text-slate-500 hover:text-slate-700 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
                   <input
                     type="text"
                     name="name"
@@ -767,13 +809,25 @@ const PropertyDetails = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
                     required
                   ></textarea>
-                  <button
-                    type="submit"
-                    disabled={contactLoading}
-                    className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all disabled:opacity-60"
-                  >
-                    {contactLoading ? "Sending..." : "Send Message"}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={contactLoading}
+                      className="flex-1 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all disabled:opacity-60"
+                    >
+                      {contactLoading ? "Sending..." : "Send Message"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowContactForm(false);
+                        setInquiryStep(0);
+                      }}
+                      className="flex-1 py-2.5 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </form>
               )}
 
@@ -877,6 +931,7 @@ const PropertyDetails = () => {
               setShowBookingModal(false);
               setBookingError("");
               setEsewaPayload(null);
+              if (listingType === "sell") setInquiryStep(0);
             }}
           >
             <div 
@@ -890,6 +945,7 @@ const PropertyDetails = () => {
                     setShowBookingModal(false);
                     setBookingError("");
                     setEsewaPayload(null);
+                    if (listingType === "sell") setInquiryStep(0);
                   }}
                   className="text-gray-400 hover:text-gray-600 text-2xl font-bold w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full transition"
                 >
@@ -1132,6 +1188,7 @@ const PropertyDetails = () => {
                       onClick={() => {
                         setShowBookingModal(false);
                         setBookingError("");
+                        if (listingType === "sell") setInquiryStep(0);
                       }}
                       className="flex-1 py-3 text-center border-2 border-gray-300 text-gray-900 font-semibold rounded-lg hover:bg-gray-50 transition-all text-lg"
                     >
@@ -1149,6 +1206,14 @@ const PropertyDetails = () => {
               </form>
             </div>
           </div>
+        )}
+
+        {/* Booking Requests Modal */}
+        {showBookingRequestsModal && property && (
+          <BookingRequestsList 
+            propertyId={property._id} 
+            onClose={() => setShowBookingRequestsModal(false)}
+          />
         )}
       </div>
     </div>
