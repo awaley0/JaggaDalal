@@ -196,7 +196,16 @@ export const createBooking = async (req, res) => {
       });
     }
 
-    const paymentAmount = rawAmount.toFixed(2);
+    // For localhost/development, cap the payment amount for eSewa sandbox testing (max ~100,000 NPR)
+    // eSewa test environment has amount restrictions
+    let paymentAmount = rawAmount.toFixed(2);
+    if (process.env.NODE_ENV === 'development') {
+      const maxTestAmount = 100000; // eSewa sandbox max testable amount
+      if (Number(paymentAmount) > maxTestAmount) {
+        paymentAmount = maxTestAmount.toFixed(2);
+      }
+    }
+
     const productCode = process.env.ESEWA_MERCHANT_CODE || 'EPAYTEST';
 
     const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
@@ -261,7 +270,11 @@ export const getPropertyBookingRequests = async (req, res) => {
       });
     }
 
-    if (String(property.seller) !== String(userId)) {
+    // Compare seller with authenticated user (handle ObjectId comparison)
+    const sellerIdStr = property.seller.toString();
+    const userIdStr = String(userId);
+    
+    if (sellerIdStr !== userIdStr) {
       return res.status(403).json({
         success: false,
         error: 'You are not authorized to view booking requests for this property',

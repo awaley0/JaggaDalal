@@ -163,7 +163,7 @@ export const addProperty = async (req, res) => {
       seller: req.user.id, // From auth middleware
       featured: featured === true || featured === 'true',
       status: "available",
-      verified: false,
+      verified: true,
     };
 
     // Add optional fields if provided
