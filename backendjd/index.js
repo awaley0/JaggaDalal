@@ -5,7 +5,9 @@ import session from "express-session";
 import passport from "passport";
 import http from "http";
 import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
 import connectDB from "./src/config/db.js";
+import { validateEnvironmentVariables } from "./src/config/validateEnv.js";
 import passportConfig from "./src/config/passport.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import propertyRoutes from "./src/routes/propertyRoutes.js";
@@ -18,6 +20,9 @@ import Chat from "./src/models/Chat.js";
 import User from "./src/models/User.js";
 
 dotenv.config();
+
+// Validate environment variables at startup
+validateEnvironmentVariables();
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -39,11 +44,19 @@ const onlineUsers = new Map(); // userId -> socketId
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   if (!token) {
-    return next(new Error("Authentication error"));
+    return next(new Error("Authentication error: No token provided"));
   }
-  // Store token in socket for later verification if needed
-  socket.token = token;
-  next();
+  
+  try {
+    // Verify JWT token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_super_secret_jwt_key_change_this_in_production");
+    socket.userId = decoded.id;
+    socket.userRole = decoded.role;
+    next();
+  } catch (error) {
+    console.error("JWT verification error:", error.message);
+    return next(new Error(`Authentication error: ${error.message}`));
+  }
 });
 
 // Socket.IO Connection Handler

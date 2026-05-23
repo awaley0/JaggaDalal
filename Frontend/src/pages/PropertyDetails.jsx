@@ -120,7 +120,7 @@ const PropertyDetails = () => {
       const inquiryMessage = [
         `Property inquiry for \"${property.title}\"`,
         `Buyer: ${contactForm.name}`,
-        `Seller: ${contactForm.sellerName || sellerName}`,
+        `Seller: ${contactForm.sellerName || property?.seller?.name || "Seller"}`,
         contactForm.message,
         `Contact: ${contactForm.name} | ${contactForm.email}${contactForm.phone ? ` | ${contactForm.phone}` : ''}`,
       ]
@@ -141,7 +141,7 @@ const PropertyDetails = () => {
       }));
       setShowContactForm(false);
       setInquiryStep(0); // Reset inquiry step back to 0
-      navigate(`/chat?recipientId=${encodeURIComponent(sellerId)}&recipientName=${encodeURIComponent(sellerName)}&propertyId=${encodeURIComponent(property._id || property.id)}`);
+      navigate(`/chat?recipientId=${encodeURIComponent(sellerId)}&recipientName=${encodeURIComponent(contactForm.sellerName || property?.seller?.name || "Seller")}&propertyId=${encodeURIComponent(property._id || property.id)}`);
     } catch (error) {
       console.error("Contact inquiry error:", error);
       alert(error.response?.data?.error || "Failed to send your inquiry. Please try again.");

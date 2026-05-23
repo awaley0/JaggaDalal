@@ -1,5 +1,5 @@
 import express from "express";
-import { addProperty, getAllProperties, getPropertyById, getSellerProperties, getSellerDashboardStats, getSellerRevenueReport, updateProperty, deleteProperty, getRecommendedProperties } from "../controllers/propetyController.js";
+import { addProperty, getAllProperties, getPropertyById, getSellerProperties, getSellerDashboardStats, getSellerRevenueReport, updateProperty, deleteProperty, getRecommendedProperties } from "../controllers/propertyController.js";
 import { authMiddleware, roleMiddleware, sellerOnly } from "../middleware/roleMiddleware.js";
 import { uploadImages, handleUploadError } from "../middleware/imageUploadMiddleware.js";
 

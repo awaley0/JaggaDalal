@@ -14,6 +14,7 @@ import {
 import { authMiddleware, adminOnly } from "../middleware/roleMiddleware.js";
 import { validateSignup, validateLogin, validateEmail } from "../middleware/validationMiddleware.js";
 import { uploadImages, handleUploadError } from "../middleware/imageUploadMiddleware.js";
+import { loginLimiter, signupLimiter, passwordResetLimiter, otpLimiter } from "../middleware/rateLimitMiddleware.js";
 import passport from "../config/passport.js";
 
 const router = express.Router();
@@ -26,14 +27,14 @@ const getGoogleCallbackUrl = (req) => {
 };
 
 // Public routes
-router.post("/signup", validateSignup, signup);
-router.post("/login", validateLogin, login);
-router.post("/forgot-password", validateEmail, forgotPassword);
-router.post("/reset-password", resetPassword);
+router.post("/signup", signupLimiter, validateSignup, signup);
+router.post("/login", loginLimiter, validateLogin, login);
+router.post("/forgot-password", passwordResetLimiter, validateEmail, forgotPassword);
+router.post("/reset-password", passwordResetLimiter, resetPassword);
 
 // OTP routes for signup verification
-router.post("/send-otp", sendOTP);
-router.post("/verify-otp", verifyOTP);
+router.post("/send-otp", otpLimiter, sendOTP);
+router.post("/verify-otp", otpLimiter, verifyOTP);
 
 // Google OAuth Routes with role support
 router.get("/google", (req, res, next) => {
