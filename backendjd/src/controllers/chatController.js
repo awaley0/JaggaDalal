@@ -3,7 +3,7 @@ import User from '../models/User.js';
 import mongoose from 'mongoose';
 import cloudinary from '../Utils/cloudinary.js';
 
-const ADMIN_AUTO_GREETING = 'Hello sir, waht are you interested in';
+const ADMIN_AUTO_GREETING = 'Hello sir, what are you interested in';
 
 const uploadChatImage = async (imageData) => {
   const uploadResult = await cloudinary.uploader.upload(imageData, {

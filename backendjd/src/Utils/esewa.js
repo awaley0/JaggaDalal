@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 
-// eSewa Sandbox Credentials
-const ESEWA_MERCHANT_CODE = 'EPAYTEST';
-const ESEWA_SECRET_KEY = '8gBm/:&EnhH.1/q'; 
+// eSewa Sandbox Credentials - from environment variables
+const ESEWA_MERCHANT_CODE = process.env.ESEWA_MERCHANT_CODE || 'EPAYTEST';
+const ESEWA_SECRET_KEY = process.env.ESEWA_SECRET_KEY || '8gBm/:&EnhH.1/q'; 
 
 // For standard testing without env vars, hardcoding these as specified in Sandbox docs.
 export const generateEsewaSignature = (total_amount, transaction_uuid, product_code = ESEWA_MERCHANT_CODE) => {

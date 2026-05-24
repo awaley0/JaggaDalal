@@ -101,8 +101,8 @@ export const signup = async (req, res) => {
     existingUser.password = hashedPassword;
     existingUser.role = normalizedRole;
     existingUser.requestedRole = isPrivilegedRoleRequest ? normalizedRole : null;
-    // Auto-approve seller role requests, only admin requests stay pending for approval
-    existingUser.roleRequestStatus = normalizedRole === "admin" ? "pending" : "approved";
+    // All elevated role requests require admin approval (seller or admin)
+    existingUser.roleRequestStatus = isPrivilegedRoleRequest ? "pending" : "approved";
     existingUser.phone = phone || "";
     existingUser.bio = bio || "";
     existingUser.verified = true;
