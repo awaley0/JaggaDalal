@@ -203,13 +203,6 @@ const PropertyDetails = () => {
       return;
     }
 
-    // For sales properties, just close the modal and show Inquire button
-    if (listingType === "sell") {
-      setShowBookingModal(false);
-      setBookingError("");
-      return;
-    }
-
     setBookingLoading(true);
     setBookingError("");
 

@@ -30,8 +30,8 @@ const httpServer = http.createServer(app);
 // ============ SOCKET.IO CONFIGURATION ============
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CORS_ORIGIN?.split(",") || "http://localhost:5173",
-    credentials: true,
+    origin: "*",
+    credentials: false,
     methods: ["GET", "POST"],
   },
   transports: ["websocket", "polling"],
@@ -168,8 +168,8 @@ io.on("connection", (socket) => {
 
 // CORS Configuration
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN?.split(",") || "http://localhost:5173",
-  credentials: true,
+  origin: "*",
+  credentials: false,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
